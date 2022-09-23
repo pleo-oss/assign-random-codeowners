@@ -39,6 +39,14 @@ const extractPullRequestPayload = (context: Context) => {
     : undefined
 }
 
+const validatePullRequest = (pullRequest?: PullRequestInformation) => {
+  if (!pullRequest) {
+    core.error("Pull Request payload was not found. Is the action triggered by the 'pull-request' event?")
+    process.exit(1)
+  }
+  return pullRequest
+}
+
 const extractAssigneeCount = async (pullRequest: PullRequestInformation) => {
   const { owner, repo } = pullRequest
 
@@ -60,11 +68,7 @@ const extractAssigneeCount = async (pullRequest: PullRequestInformation) => {
 const extractChangedFiles = async (assignFromChanges: boolean) => {
   if (!assignFromChanges) return []
 
-  const pullRequest = extractPullRequestPayload(github.context)
-  if (pullRequest == null) {
-    core.error("Pull Request payload was not found. Is the action triggered by the 'pull-request' event?")
-    process.exit(1)
-  }
+  const pullRequest = validatePullRequest(extractPullRequestPayload(github.context))
 
   const { owner, repo } = github.context.repo
   const pullRequestNumber = pullRequest.number
@@ -138,11 +142,7 @@ const run = async () => {
     const filesChanged = await extractChangedFiles(assignFromChanges)
     const parsedCodeOwners = parse(codeownersLocation)
 
-    const pullRequest = extractPullRequestPayload(github.context)
-    if (!pullRequest) {
-      core.error("Pull Request payload was not found. Is the action triggered by the 'pull-request' event?")
-      process.exit(1)
-    }
+    const pullRequest = validatePullRequest(extractPullRequestPayload(github.context))
 
     const assignedReviewers = await extractAssigneeCount(pullRequest)
     if (assignedReviewers > reviewers) {
@@ -166,4 +166,4 @@ const run = async () => {
   }
 }
 
-void run()
+run()
