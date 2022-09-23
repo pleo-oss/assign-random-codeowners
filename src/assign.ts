@@ -1,14 +1,8 @@
 import core from '@actions/core'
 import github from '@actions/github'
 import fs from 'fs'
-import { Octokit } from '@octokit/core'
-import { Api } from '@octokit/plugin-rest-endpoint-methods/dist-types/types'
 import { CodeOwnersEntry, matchFile, parse } from 'codeowners-utils'
 import { Context } from '@actions/github/lib/context'
-
-const reviewers = Number.parseInt(core.getInput('reviewers-to-assign', { required: true }))
-const assignFromChanges = core.getBooleanInput('assign-from-changed-files')
-const validPaths = ['CODEOWNERS', '.github/CODEOWNERS', 'docs/CODEOWNERS']
 
 interface PullRequestInformation {
   number: number
@@ -22,64 +16,37 @@ interface Assignees {
   users: string[]
 }
 
-const stringify = (input?: unknown): string => JSON.stringify(input)
+const reviewers = Number.parseInt(core.getInput('reviewers-to-assign', { required: true }))
+const assignFromChanges = core.getBooleanInput('assign-from-changed-files')
+const validPaths = ['CODEOWNERS', '.github/CODEOWNERS', 'docs/CODEOWNERS']
+const octokit = github.getOctokit(core.getInput('GITHUB_TOKEN'))
 
-async function run (): Promise<void> {
-  try {
-    const octokit = github.getOctokit(core.getInput('GITHUB_TOKEN'))
+const stringify = (input?: unknown) => JSON.stringify(input)
+const extractPullRequestPayload = (context: Context) => {
+  const {
+    payload: {
+      pull_request: payload,
+      repo: { repo, owner },
+    },
+  } = context
 
-    const codeownersLocation = validPaths.find(path => fs.existsSync(path))
-    if (codeownersLocation === undefined) {
-      core.error(`Did not find a CODEOWNERS file in either ${stringify(validPaths)}.`)
-      process.exit(1)
-    }
-    core.info(`Found CODEOWNERS at ${codeownersLocation}`)
-
-    const filesChanged = await extractChangedFiles(assignFromChanges, octokit)
-    const parsedCodeOwners = parse(codeownersLocation)
-
-    const pullRequestInformation = extractPullRequestPayload(github.context)
-    if (pullRequestInformation == null) {
-      core.error("Pull Request payload was not found. Is the action triggered by the 'pull-request' event?")
-      process.exit(1)
-    }
-
-    const assignedReviewers = await extractAssigneeCount(pullRequestInformation, octokit)
-    if (assignedReviewers > reviewers) {
-      core.info(`Saw ${assignedReviewers} assigned reviewers - skipping CODEOWNERS assignment.`)
-      process.exit(0)
-    }
-
-    const selected = await selectReviewers(assignedReviewers, filesChanged, parsedCodeOwners)
-    core.info(`Selected reviewers for assignment: ${stringify(selected)}`)
-    const assigned = await assignReviewers(pullRequestInformation, selected, octokit)
-    if (assigned === undefined) {
-      core.error(`Failed to assign reviewers: ${stringify(selected)}`)
-      process.exit(1)
-    }
-    core.setOutput('assigned-codeowners', stringify(assigned))
-    core.info(`Assigned reviewers: ${stringify(assigned)}`)
-  } catch (error: unknown) {
-    core.setFailed(error as Error)
-  }
+  return payload && repo && owner
+    ? {
+        number: payload.number,
+        repo,
+        owner,
+      }
+    : undefined
 }
 
-function extractPullRequestPayload (context: Context): PullRequestInformation | undefined {
-  const { payload: { pull_request: payload } } = context
-  if (payload == null) return undefined
+const extractAssigneeCount = async (pullRequest: PullRequestInformation) => {
+  const { owner, repo } = pullRequest
 
-  const { repo, owner } = context.payload
-  return {
-    number: payload?.number,
+  const currentReviewers = await octokit.rest.pulls.listRequestedReviewers({
+    owner,
     repo,
-    owner
-  }
-}
-
-async function extractAssigneeCount (pullRequestInformation: PullRequestInformation, octokit: Octokit & Api): Promise<number> {
-  const { owner, repo } = github.context.repo
-
-  const currentReviewers = await octokit.rest.pulls.listRequestedReviewers({ owner, repo, pull_number: pullRequestInformation.number })
+    pull_number: pullRequest.number,
+  })
   core.info('Found assigned reviewer teams:')
   const teams = currentReviewers.data.teams.map(team => team.name)
   core.info(stringify(teams))
@@ -90,19 +57,23 @@ async function extractAssigneeCount (pullRequestInformation: PullRequestInformat
   return currentReviewers.data.teams.length + currentReviewers.data.users.length
 }
 
-async function extractChangedFiles (assignFromChanges: boolean, octokit: Api): Promise<string[]> {
+const extractChangedFiles = async (assignFromChanges: boolean) => {
   if (!assignFromChanges) return []
 
-  const { payload: { pull_request: pullRequestPayload } } = github.context
-  if (pullRequestPayload == null) {
+  const pullRequest = extractPullRequestPayload(github.context)
+  if (pullRequest == null) {
     core.error("Pull Request payload was not found. Is the action triggered by the 'pull-request' event?")
     process.exit(1)
   }
 
   const { owner, repo } = github.context.repo
-  const pullRequestNumber = pullRequestPayload.number
+  const pullRequestNumber = pullRequest.number
 
-  const changedFiles = await octokit.rest.pulls.listFiles({ owner, repo, pull_number: pullRequestNumber })
+  const changedFiles = await octokit.rest.pulls.listFiles({
+    owner,
+    repo,
+    pull_number: pullRequestNumber,
+  })
   const filenames = changedFiles.data.map(file => file.filename)
   core.info('Found PR files:')
   core.info(filenames.join(', '))
@@ -110,13 +81,13 @@ async function extractChangedFiles (assignFromChanges: boolean, octokit: Api): P
   return filenames
 }
 
-const randomize = (input?: unknown[]): unknown[] | undefined => input?.sort(() => Math.random() - 0.5)
+const selectReviewers = (assigned: number, filesChanged: string[], codeowners: CodeOwnersEntry[]) => {
+  const randomize = (input?: unknown[]) => input?.sort(() => Math.random() - 0.5)
 
-async function selectReviewers (assigned: number, filesChanged: string[], codeowners: CodeOwnersEntry[]): Promise<Assignees> {
   const selectedReviewers: Assignees = {
     count: assigned,
     teams: [],
-    users: []
+    users: [],
   }
 
   const randomizedFilesChanged = randomize(filesChanged) as string[]
@@ -130,11 +101,9 @@ async function selectReviewers (assigned: number, filesChanged: string[], codeow
     const randomCodeOwner = randomGlobalCodeOwners?.shift()
     const selected = (fileOwner ?? randomCodeOwner) as string
 
-    if (selected !== undefined) {
+    if (selected) {
       const isTeam = /@.*\//.test(selected)
-      isTeam
-        ? selectedReviewers.teams.push(selected)
-        : selectedReviewers.users.push(selected)
+      isTeam ? selectedReviewers.teams.push(selected) : selectedReviewers.users.push(selected)
       selectedReviewers.count++
     }
   }
@@ -142,19 +111,59 @@ async function selectReviewers (assigned: number, filesChanged: string[], codeow
   return selectedReviewers
 }
 
-async function assignReviewers (pullRequestInformation: PullRequestInformation, reviewers: Assignees, octokit: Api): Promise<string[]> {
-  const { repo, owner, number } = pullRequestInformation
+const assignReviewers = async (pullRequest: PullRequestInformation, reviewers: Assignees) => {
+  const { repo, owner, number } = pullRequest
   const { teams, users } = reviewers
   const assigned = await octokit.rest.pulls.requestReviewers({
     owner,
     repo,
     pull_number: number,
     team_reviewers: teams,
-    reviewers: users
+    reviewers: users,
   })
   const requestedReviewers = assigned.data.requested_reviewers?.map(user => user.login) ?? []
   const requestedTeams = assigned.data.requested_teams?.map(team => team.name) ?? []
   return requestedReviewers.concat(requestedTeams)
+}
+
+const run = async () => {
+  try {
+    const codeownersLocation = validPaths.find(path => fs.existsSync(path))
+    if (codeownersLocation === undefined) {
+      core.error(`Did not find a CODEOWNERS file in either ${stringify(validPaths)}.`)
+      process.exit(1)
+    }
+    core.info(`Found CODEOWNERS at ${codeownersLocation}`)
+
+    const filesChanged = await extractChangedFiles(assignFromChanges)
+    const parsedCodeOwners = parse(codeownersLocation)
+
+    const pullRequest = extractPullRequestPayload(github.context)
+    if (!pullRequest) {
+      core.error("Pull Request payload was not found. Is the action triggered by the 'pull-request' event?")
+      process.exit(1)
+    }
+
+    const assignedReviewers = await extractAssigneeCount(pullRequest)
+    if (assignedReviewers > reviewers) {
+      core.info(`Saw ${assignedReviewers} assigned reviewers - skipping CODEOWNERS assignment.`)
+      process.exit(0)
+    }
+
+    const selected = selectReviewers(assignedReviewers, filesChanged, parsedCodeOwners)
+    core.info(`Selected reviewers for assignment: ${stringify(selected)}`)
+
+    const assigned = await assignReviewers(pullRequest, selected)
+    if (assigned) {
+      core.error(`Failed to assign reviewers: ${stringify(selected)}`)
+      process.exit(1)
+    }
+
+    core.setOutput('assigned-codeowners', stringify(assigned))
+    core.info(`Assigned reviewers: ${stringify(assigned)}`)
+  } catch (error: unknown) {
+    core.setFailed(error as Error)
+  }
 }
 
 void run()

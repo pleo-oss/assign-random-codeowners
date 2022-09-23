@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -19,108 +10,122 @@ const codeowners_utils_1 = require("codeowners-utils");
 const reviewers = Number.parseInt(core_1.default.getInput('reviewers-to-assign', { required: true }));
 const assignFromChanges = core_1.default.getBooleanInput('assign-from-changed-files');
 const validPaths = ['CODEOWNERS', '.github/CODEOWNERS', 'docs/CODEOWNERS'];
-function run() {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            const octokit = github_1.default.getOctokit(core_1.default.getInput("GITHUB_TOKEN"));
-            const codeownersLocation = validPaths.find(path => fs_1.default.existsSync(path));
-            if (!codeownersLocation) {
-                core_1.default.error(`Did not find a CODEOWNERS file in either ${validPaths.join(", ")}.`);
-                process.exit(1);
-            }
-            core_1.default.info(`Found CODEOWNERS at ${codeownersLocation}`);
-            const filesChanged = yield determineChangedFiles(assignFromChanges, octokit);
-            const parsedCodeOwners = (0, codeowners_utils_1.parse)(codeownersLocation);
-            const pullRequestInformation = getPullRequestInformation(github_1.default.context);
-            if (!pullRequestInformation) {
-                core_1.default.error("Pull Request payload was not found. Is the action triggered by the 'pull-request' event?");
-                process.exit(1);
-            }
-            const assignedReviewers = yield determineAssignedReviewers(pullRequestInformation, octokit);
-            if (assignedReviewers > reviewers) {
-                core_1.default.info(`Saw ${assignedReviewers} assigned reviewers - skipping CODEOWNERS assignment.`);
-                process.exit(0);
-            }
-            const selected = yield selectReviewers(assignedReviewers, filesChanged, parsedCodeOwners);
-            core_1.default.info(`Selected reviewers for assignment: [${selected.join(", ")}]`);
-            const assigned = yield assignReviewers(pullRequestInformation, selected, octokit);
-            if (!assigned) {
-                core_1.default.error(`Failed to assign reviewers: ${selected.join(", ")}`);
-                process.exit(1);
-            }
-            core_1.default.info(`Assigned reviewers: ${assigned.map(user => user.login).join(", ")}`);
+const octokit = github_1.default.getOctokit(core_1.default.getInput('GITHUB_TOKEN'));
+const stringify = (input) => JSON.stringify(input);
+const extractPullRequestPayload = (context) => {
+    const { payload: { pull_request: payload, repo: { repo, owner }, }, } = context;
+    return payload && repo && owner
+        ? {
+            number: payload.number,
+            repo,
+            owner,
         }
-        catch (error) {
-            core_1.default.setFailed(error.message);
-        }
-    });
-}
-function getPullRequestInformation(context) {
-    const { payload: { pull_request: pullRequestPayload } } = context;
-    if (!pullRequestPayload)
-        return undefined;
-    const { repo, owner } = context.payload;
-    return {
-        number: pullRequestPayload === null || pullRequestPayload === void 0 ? void 0 : pullRequestPayload.number,
+        : undefined;
+};
+const extractAssigneeCount = async (pullRequest) => {
+    const { owner, repo } = pullRequest;
+    const currentReviewers = await octokit.rest.pulls.listRequestedReviewers({
+        owner,
         repo,
-        owner
-    };
-}
-function determineAssignedReviewers(pullRequestInformation, octokit) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const { owner, repo } = github_1.default.context.repo;
-        const currentReviewers = yield octokit.rest.pulls.listRequestedReviewers({ owner, repo, pull_number: pullRequestInformation.number });
-        core_1.default.info("Found assigned reviewer teams:");
-        core_1.default.info(currentReviewers.data.teams.map(team => team.name).join(", "));
-        core_1.default.info("Found assigned reviewer users:");
-        core_1.default.info(currentReviewers.data.users.map(user => user.login).join(", "));
-        return currentReviewers.data.teams.length + currentReviewers.data.users.length;
+        pull_number: pullRequest.number,
     });
-}
-function determineChangedFiles(assignFromChanges, octokit) {
-    return __awaiter(this, void 0, void 0, function* () {
-        if (!assignFromChanges)
-            return [];
-        const { payload: { pull_request: pullRequestPayload } } = github_1.default.context;
-        if (!pullRequestPayload) {
+    core_1.default.info('Found assigned reviewer teams:');
+    const teams = currentReviewers.data.teams.map(team => team.name);
+    core_1.default.info(stringify(teams));
+    core_1.default.info('Found assigned reviewer users:');
+    const users = currentReviewers.data.users.map(user => user.login);
+    core_1.default.info(stringify(users));
+    return currentReviewers.data.teams.length + currentReviewers.data.users.length;
+};
+const extractChangedFiles = async (assignFromChanges) => {
+    if (!assignFromChanges)
+        return [];
+    const pullRequest = extractPullRequestPayload(github_1.default.context);
+    if (pullRequest == null) {
+        core_1.default.error("Pull Request payload was not found. Is the action triggered by the 'pull-request' event?");
+        process.exit(1);
+    }
+    const { owner, repo } = github_1.default.context.repo;
+    const pullRequestNumber = pullRequest.number;
+    const changedFiles = await octokit.rest.pulls.listFiles({
+        owner,
+        repo,
+        pull_number: pullRequestNumber,
+    });
+    const filenames = changedFiles.data.map(file => file.filename);
+    core_1.default.info('Found PR files:');
+    core_1.default.info(filenames.join(', '));
+    return filenames;
+};
+const selectReviewers = (assigned, filesChanged, codeowners) => {
+    const randomize = (input) => input?.sort(() => Math.random() - 0.5);
+    const selectedReviewers = {
+        count: assigned,
+        teams: [],
+        users: [],
+    };
+    const randomizedFilesChanged = randomize(filesChanged);
+    const globalCodeOwners = codeowners.find(owner => owner.pattern === '*')?.owners;
+    const randomGlobalCodeOwners = randomize(globalCodeOwners);
+    while (selectedReviewers.count + assigned < reviewers) {
+        const randomFile = randomizedFilesChanged.shift() ?? '';
+        const fileOwner = randomize((0, codeowners_utils_1.matchFile)(randomFile, codeowners)?.owners)?.shift();
+        const randomCodeOwner = randomGlobalCodeOwners?.shift();
+        const selected = (fileOwner ?? randomCodeOwner);
+        if (selected) {
+            const isTeam = /@.*\//.test(selected);
+            isTeam ? selectedReviewers.teams.push(selected) : selectedReviewers.users.push(selected);
+            selectedReviewers.count++;
+        }
+    }
+    return selectedReviewers;
+};
+const assignReviewers = async (pullRequest, reviewers) => {
+    const { repo, owner, number } = pullRequest;
+    const { teams, users } = reviewers;
+    const assigned = await octokit.rest.pulls.requestReviewers({
+        owner,
+        repo,
+        pull_number: number,
+        team_reviewers: teams,
+        reviewers: users,
+    });
+    const requestedReviewers = assigned.data.requested_reviewers?.map(user => user.login) ?? [];
+    const requestedTeams = assigned.data.requested_teams?.map(team => team.name) ?? [];
+    return requestedReviewers.concat(requestedTeams);
+};
+const run = async () => {
+    try {
+        const codeownersLocation = validPaths.find(path => fs_1.default.existsSync(path));
+        if (codeownersLocation === undefined) {
+            core_1.default.error(`Did not find a CODEOWNERS file in either ${stringify(validPaths)}.`);
+            process.exit(1);
+        }
+        core_1.default.info(`Found CODEOWNERS at ${codeownersLocation}`);
+        const filesChanged = await extractChangedFiles(assignFromChanges);
+        const parsedCodeOwners = (0, codeowners_utils_1.parse)(codeownersLocation);
+        const pullRequest = extractPullRequestPayload(github_1.default.context);
+        if (!pullRequest) {
             core_1.default.error("Pull Request payload was not found. Is the action triggered by the 'pull-request' event?");
             process.exit(1);
         }
-        const { owner, repo } = github_1.default.context.repo;
-        const pullRequestNumber = pullRequestPayload.number;
-        const changedFiles = yield octokit.rest.pulls.listFiles({ owner, repo, pull_number: pullRequestNumber });
-        const filenames = changedFiles.data.map(file => file.filename);
-        core_1.default.info("Found PR files:");
-        core_1.default.info(filenames.join(", "));
-        return filenames;
-    });
-}
-function selectReviewers(assigned, filesChanged, codeowners) {
-    var _a, _b, _c, _d;
-    return __awaiter(this, void 0, void 0, function* () {
-        const randomize = (input) => input === null || input === void 0 ? void 0 : input.sort((_, __) => Math.random() - 0.5);
-        const selectedReviewers = [];
-        const randomFiles = randomize(filesChanged);
-        const globalCodeOwners = (_a = codeowners.find(owner => owner.pattern === "*")) === null || _a === void 0 ? void 0 : _a.owners;
-        const randomGlobalCodeOwners = randomize(globalCodeOwners);
-        while (selectedReviewers.length + assigned < reviewers) {
-            const randomFile = (_b = randomFiles.shift()) !== null && _b !== void 0 ? _b : "";
-            const fileOwner = (_d = randomize((_c = (0, codeowners_utils_1.matchFile)(randomFile, codeowners)) === null || _c === void 0 ? void 0 : _c.owners)) === null || _d === void 0 ? void 0 : _d.shift();
-            const randomCodeOwner = randomGlobalCodeOwners === null || randomGlobalCodeOwners === void 0 ? void 0 : randomGlobalCodeOwners.shift();
-            const selected = fileOwner !== null && fileOwner !== void 0 ? fileOwner : randomCodeOwner;
-            if (selected) {
-                selectedReviewers.push(selected);
-                assigned++;
-            }
+        const assignedReviewers = await extractAssigneeCount(pullRequest);
+        if (assignedReviewers > reviewers) {
+            core_1.default.info(`Saw ${assignedReviewers} assigned reviewers - skipping CODEOWNERS assignment.`);
+            process.exit(0);
         }
-        return selectedReviewers;
-    });
-}
-function assignReviewers(pullRequestInformation, reviewers, octokit) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const { repo, owner, number } = pullRequestInformation;
-        const assigned = yield octokit.rest.pulls.requestReviewers({ owner, repo, pull_number: number, reviewers });
-        return assigned.data.requested_reviewers;
-    });
-}
-run();
+        const selected = selectReviewers(assignedReviewers, filesChanged, parsedCodeOwners);
+        core_1.default.info(`Selected reviewers for assignment: ${stringify(selected)}`);
+        const assigned = await assignReviewers(pullRequest, selected);
+        if (assigned) {
+            core_1.default.error(`Failed to assign reviewers: ${stringify(selected)}`);
+            process.exit(1);
+        }
+        core_1.default.setOutput('assigned-codeowners', stringify(assigned));
+        core_1.default.info(`Assigned reviewers: ${stringify(assigned)}`);
+    }
+    catch (error) {
+        core_1.default.setFailed(error);
+    }
+};
+void run();
