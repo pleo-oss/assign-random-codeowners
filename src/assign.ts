@@ -58,16 +58,17 @@ export const extractAssigneeCount = (pullRequest: PullRequestInformation) => asy
   info(`Requesting current reviewers in PR #${pull_number} via the GitHub API.`)
   const {
     data: { teams, users },
+    status,
   } = await octokit.rest.pulls.listRequestedReviewers({
     owner,
     repo,
     pull_number,
   })
 
-  info('Found assigned reviewer teams:')
+  info(`[${status}] Found assigned reviewer teams:`)
   const teamNames = teams.map(team => team.name)
   info(stringify(teamNames))
-  info('Found assigned reviewer users:')
+  info(`[${status}] Found assigned reviewer users:`)
   const userNames = users.map(user => user.login)
   info(stringify(userNames))
 
@@ -81,14 +82,14 @@ export const extractChangedFiles =
     const { owner, repo, number: pull_number } = pullRequest
 
     info(`Requesting files changed in PR #${pull_number} via the GitHub API.`)
-    const { data: changedFiles } = await octokit.rest.pulls.listFiles({
+    const { data: changedFiles, status } = await octokit.rest.pulls.listFiles({
       owner,
       repo,
       pull_number,
     })
 
     const filenames = changedFiles.map(file => file.filename)
-    info('Found changed PR files:')
+    info(`[${status}] Found changed PR files:`)
     info(stringify(filenames))
 
     return filenames
@@ -133,15 +134,13 @@ export const assignReviewers = (pullRequest: PullRequestInformation, reviewers: 
   const { teams, users } = reviewers
 
   info('Requesting reviewers via the GitHub API.')
-  const { data: assigned } = await octokit.rest.pulls.requestReviewers({
+  const { data: assigned, status } = await octokit.rest.pulls.requestReviewers({
     owner,
     repo,
     pull_number: number,
     team_reviewers: teams,
     reviewers: users,
   })
-  info('Got response from GitHub API:')
-  info(stringify(assigned))
 
   const requestedReviewers = assigned.requested_reviewers?.map(user => user.login)
   const requestedTeams = assigned.requested_teams?.map(team => team.name)
@@ -153,7 +152,7 @@ export const assignReviewers = (pullRequest: PullRequestInformation, reviewers: 
       users: requestedReviewers,
     }
 
-    info('Assigned reviewers: ')
+    info(`[${status}] Assigned reviewers: `)
     info(stringify(requested))
     return requested
   }
