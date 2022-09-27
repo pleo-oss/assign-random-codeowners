@@ -41,5 +41,5 @@ jobs:
           script: |
             const result = JSON.parse('${{ steps.assign.outputs.assigned-codeowners }}')
             
-            if (!result || result.count !== ${{ matrix.reviewers-to-assign }}) 
+            if (!result || result.count !== 1)
               process.exit(1)
