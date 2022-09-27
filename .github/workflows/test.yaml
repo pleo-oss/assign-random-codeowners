@@ -2,10 +2,7 @@ on:
   pull_request:
     types:
       - assigned
-      - auto_merge_disabled
-      - auto_merge_enabled
       - closed
-      - converted_to_draft
       - edited
       - labeled
       - locked
@@ -20,41 +17,59 @@ on:
       - unlocked
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Test
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup node
+      uses: actions/setup-node@v3
+      with:
+        node-version: 16
+        cache: yarn
+
+    - name: Install packages
+      run: |
+        yarn
+
+    - name: Build
+      run: |
+        yarn build
+
+    - name: Run unit tests
+      run: |
+        yarn test
+    
+
   assign:
+    needs: test
     runs-on: ubuntu-latest
     name: Assign Reviewers
     strategy:
       fail-fast: true
       matrix:
         assign-from-changed-files: [true, false]
-        reviewers-to-assign: [0, 1, 2, ""]
+        reviewers-to-assign: [0, 1, 2]
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-
-      - name: Create CODEOWNERS
-        run: |
-          cat << EOF
-          * @andersfischernielsen
-          @andersfischernielsen
-
-          test-file.txt @andersfischernielsen
-          EOF > ./github/CODEOWNERS
-
-          echo "Changed" > test-file.txt
 
       - name: Assign reviewers
         uses: ./
         id: assign
         with:
-          assign-from-changed-files: matrix.assign-from-changed-files
-          reviewers-to-assign: matrix.reviewers-to-assign
+          assign-from-changed-files: '${{ matrix.assign-from-changed-files }}'
+          reviewers-to-assign: '${{ matrix.reviewers-to-assign }}'
+        env: 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Validate
         uses: actions/github-script@v6
         with: 
           script: |
-            const result = JSON.parse("${{ steps.assign.outputs.assigned-codeowners }}")
+            const result = JSON.parse('${{ steps.assign.outputs.assigned-codeowners }}')
             
-            if (!result || result.length === 0) 
+            if (!result || result.count !== ${{ matrix.reviewers-to-assign }}) 
               process.exit(1)
