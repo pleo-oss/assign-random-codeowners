@@ -1,6 +1,6 @@
 import { getInput, getBooleanInput, error, info, setOutput, setFailed } from '@actions/core'
 import { getOctokit, context } from '@actions/github'
-import fs from 'fs'
+import { existsSync, promises as fs } from 'fs'
 import { CodeOwnersEntry, parse } from 'codeowners-utils'
 import { Context } from '@actions/github/lib/context'
 import { Api } from '@octokit/plugin-rest-endpoint-methods/dist-types/types'
@@ -160,7 +160,7 @@ export const run = async () => {
   try {
     const { assignFromChanges, reviewers, octokit } = setup()
 
-    const codeownersLocation = validPaths.find(path => fs.existsSync(path))
+    const codeownersLocation = validPaths.find(path => existsSync(path))
     if (!codeownersLocation) {
       error(`Did not find a CODEOWNERS file in: ${stringify(validPaths)}.`)
       process.exit(1)
@@ -170,7 +170,8 @@ export const run = async () => {
     const pullRequest = validatePullRequest(extractPullRequestPayload(context))
 
     const filesChanged = await extractChangedFiles(assignFromChanges)(pullRequest, octokit)
-    const codeowners = parse(codeownersLocation)
+    const codeownersContents = await fs.readFile(codeownersLocation, { encoding: 'utf-8' })
+    const codeowners = parse(codeownersContents)
     info('Parsed CODEOWNERS:')
     info(stringify(codeowners))
 

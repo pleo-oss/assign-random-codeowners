@@ -1,12 +1,9 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.run = exports.assignReviewers = exports.selectReviewers = exports.extractChangedFiles = exports.extractAssigneeCount = exports.extractPullRequestPayload = exports.setup = exports.validPaths = void 0;
 const core_1 = require("@actions/core");
 const github_1 = require("@actions/github");
-const fs_1 = __importDefault(require("fs"));
+const fs_1 = require("fs");
 const codeowners_utils_1 = require("codeowners-utils");
 exports.validPaths = ['CODEOWNERS', '.github/CODEOWNERS', 'docs/CODEOWNERS'];
 const setup = () => {
@@ -130,7 +127,7 @@ const run = async () => {
         return;
     try {
         const { assignFromChanges, reviewers, octokit } = (0, exports.setup)();
-        const codeownersLocation = exports.validPaths.find(path => fs_1.default.existsSync(path));
+        const codeownersLocation = exports.validPaths.find(path => (0, fs_1.existsSync)(path));
         if (!codeownersLocation) {
             (0, core_1.error)(`Did not find a CODEOWNERS file in: ${stringify(exports.validPaths)}.`);
             process.exit(1);
@@ -138,7 +135,8 @@ const run = async () => {
         (0, core_1.info)(`Found CODEOWNERS at ${codeownersLocation}`);
         const pullRequest = validatePullRequest((0, exports.extractPullRequestPayload)(github_1.context));
         const filesChanged = await (0, exports.extractChangedFiles)(assignFromChanges)(pullRequest, octokit);
-        const codeowners = (0, codeowners_utils_1.parse)(codeownersLocation);
+        const codeownersContents = await fs_1.promises.readFile(codeownersLocation, { encoding: 'utf-8' });
+        const codeowners = (0, codeowners_utils_1.parse)(codeownersContents);
         (0, core_1.info)('Parsed CODEOWNERS:');
         (0, core_1.info)(stringify(codeowners));
         const assignedReviewers = await (0, exports.extractAssigneeCount)(pullRequest)(octokit);
