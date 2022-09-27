@@ -53,16 +53,17 @@ const validatePullRequest = (pullRequest?: PullRequestInformation) => {
 }
 
 export const extractAssigneeCount = (pullRequest: PullRequestInformation) => async (octokit: Api) => {
-  const { owner, repo } = pullRequest
+  const { owner, repo, number: pull_number } = pullRequest
 
-  const currentReviewers = await octokit.rest.pulls.listRequestedReviewers({
-    owner,
-    repo,
-    pull_number: pullRequest.number,
-  })
+  info(`Requesting current reviewers in PR #${pull_number} via the GitHub API.`)
   const {
     data: { teams, users },
-  } = currentReviewers
+  } = await octokit.rest.pulls.listRequestedReviewers({
+    owner,
+    repo,
+    pull_number,
+  })
+
   info('Found assigned reviewer teams:')
   const teamNames = teams.map(team => team.name)
   info(stringify(teamNames))
@@ -77,16 +78,17 @@ export const extractChangedFiles =
   (assignFromChanges: boolean) => async (pullRequest: PullRequestInformation, octokit: Api) => {
     if (!assignFromChanges) return []
 
-    const { owner, repo, number } = pullRequest
+    const { owner, repo, number: pull_number } = pullRequest
 
+    info(`Requesting files changed in PR #${pull_number} via the GitHub API.`)
     const { data: changedFiles } = await octokit.rest.pulls.listFiles({
       owner,
       repo,
-      pull_number: number,
+      pull_number,
     })
 
     const filenames = changedFiles.map(file => file.filename)
-    info('Found PR files:')
+    info('Found changed PR files:')
     info(stringify(filenames))
 
     return filenames
@@ -129,15 +131,20 @@ export const selectReviewers = (
 export const assignReviewers = (pullRequest: PullRequestInformation, reviewers: Assignees) => async (octokit: Api) => {
   const { repo, owner, number } = pullRequest
   const { teams, users } = reviewers
-  const assigned = await octokit.rest.pulls.requestReviewers({
+
+  info('Requesting reviewers via the GitHub API.')
+  const { data: assigned } = await octokit.rest.pulls.requestReviewers({
     owner,
     repo,
     pull_number: number,
     team_reviewers: teams,
     reviewers: users,
   })
-  const requestedReviewers = assigned.data.requested_reviewers?.map(user => user.login)
-  const requestedTeams = assigned.data.requested_teams?.map(team => team.name)
+  info('Got response from GitHub API:')
+  info(stringify(assigned))
+
+  const requestedReviewers = assigned.requested_reviewers?.map(user => user.login)
+  const requestedTeams = assigned.requested_teams?.map(team => team.name)
 
   if (requestedReviewers && requestedTeams) {
     const requested: Assignees = {

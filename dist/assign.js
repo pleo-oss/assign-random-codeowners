@@ -43,13 +43,13 @@ const validatePullRequest = (pullRequest) => {
     return pullRequest;
 };
 const extractAssigneeCount = (pullRequest) => async (octokit) => {
-    const { owner, repo } = pullRequest;
-    const currentReviewers = await octokit.rest.pulls.listRequestedReviewers({
+    const { owner, repo, number: pull_number } = pullRequest;
+    (0, core_1.info)(`Requesting current reviewers in PR #${pull_number} via the GitHub API.`);
+    const { data: { teams, users }, } = await octokit.rest.pulls.listRequestedReviewers({
         owner,
         repo,
-        pull_number: pullRequest.number,
+        pull_number,
     });
-    const { data: { teams, users }, } = currentReviewers;
     (0, core_1.info)('Found assigned reviewer teams:');
     const teamNames = teams.map(team => team.name);
     (0, core_1.info)(stringify(teamNames));
@@ -62,14 +62,15 @@ exports.extractAssigneeCount = extractAssigneeCount;
 const extractChangedFiles = (assignFromChanges) => async (pullRequest, octokit) => {
     if (!assignFromChanges)
         return [];
-    const { owner, repo, number } = pullRequest;
+    const { owner, repo, number: pull_number } = pullRequest;
+    (0, core_1.info)(`Requesting files changed in PR #${pull_number} via the GitHub API.`);
     const { data: changedFiles } = await octokit.rest.pulls.listFiles({
         owner,
         repo,
-        pull_number: number,
+        pull_number,
     });
     const filenames = changedFiles.map(file => file.filename);
-    (0, core_1.info)('Found PR files:');
+    (0, core_1.info)('Found changed PR files:');
     (0, core_1.info)(stringify(filenames));
     return filenames;
 };
@@ -100,15 +101,18 @@ exports.selectReviewers = selectReviewers;
 const assignReviewers = (pullRequest, reviewers) => async (octokit) => {
     const { repo, owner, number } = pullRequest;
     const { teams, users } = reviewers;
-    const assigned = await octokit.rest.pulls.requestReviewers({
+    (0, core_1.info)('Requesting reviewers via the GitHub API.');
+    const { data: assigned } = await octokit.rest.pulls.requestReviewers({
         owner,
         repo,
         pull_number: number,
         team_reviewers: teams,
         reviewers: users,
     });
-    const requestedReviewers = assigned.data.requested_reviewers?.map(user => user.login);
-    const requestedTeams = assigned.data.requested_teams?.map(team => team.name);
+    (0, core_1.info)('Got response from GitHub API:');
+    (0, core_1.info)(stringify(assigned));
+    const requestedReviewers = assigned.requested_reviewers?.map(user => user.login);
+    const requestedTeams = assigned.requested_teams?.map(team => team.name);
     if (requestedReviewers && requestedTeams) {
         const requested = {
             count: requestedReviewers.length + requestedTeams.length,
