@@ -22,11 +22,6 @@ jobs:
   assign:
     runs-on: ubuntu-latest
     name: Assign Reviewers
-    strategy:
-      fail-fast: true
-      matrix:
-        assign-from-changed-files: [true, false]
-        reviewers-to-assign: [0, 1, 2]
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -35,8 +30,8 @@ jobs:
         uses: ./
         id: assign
         with:
-          assign-from-changed-files: '${{ matrix.assign-from-changed-files }}'
-          reviewers-to-assign: '${{ matrix.reviewers-to-assign }}'
+          assign-from-changed-files: true
+          reviewers-to-assign: 1
         env: 
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
