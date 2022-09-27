@@ -126,6 +126,8 @@ const assignReviewers = (pullRequest, reviewers) => async (octokit) => {
 };
 exports.assignReviewers = assignReviewers;
 const run = async () => {
+    if (process.env['CI_TEST'])
+        return;
     try {
         const { assignFromChanges, reviewers, octokit } = (0, exports.setup)();
         const codeownersLocation = exports.validPaths.find(path => fs_1.default.existsSync(path));

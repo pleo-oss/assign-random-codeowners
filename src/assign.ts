@@ -155,6 +155,8 @@ export const assignReviewers = (pullRequest: PullRequestInformation, reviewers: 
 }
 
 export const run = async () => {
+  if (process.env['CI_TEST']) return
+
   try {
     const { assignFromChanges, reviewers, octokit } = setup()
 

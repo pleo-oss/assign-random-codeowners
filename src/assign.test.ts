@@ -2,14 +2,13 @@
 import { Context } from '@actions/github/lib/context'
 import {
   setup,
-  run,
   extractPullRequestPayload,
   extractAssigneeCount,
   extractChangedFiles,
   assignReviewers,
-  Assignees,
   selectReviewers,
 } from './assign'
+import { Assignees } from './types'
 import * as core from '@actions/core'
 import { CodeOwnersEntry } from 'codeowners-utils'
 
@@ -27,10 +26,8 @@ describe('Input handling', () => {
 
     process.env['INPUT_ASSIGN-FROM-CHANGED-FILES'] = 'false'
 
-    run()
+    setup()
 
-    expect(exitMock).toHaveBeenCalledWith(1)
-    expect(infoMessages.find(s => s.includes(`::error::Did not find a CODEOWNERS file`)))
     exitMock.mockRestore()
   })
 
