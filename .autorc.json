@@ -1,0 +1,38 @@
+{
+    "owner": "pleo-oss",
+    "repo": "assign-random-codeowners",
+    "author": "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>",
+    "onlyPublishWithReleaseLabel": false,
+    "noDefaultLabels": true,
+    "labels": [
+        {
+            "name": "major",
+            "releaseType": "major",
+            "changelogTitle": "💥 Major changes",
+            "description": "Increment the major version when merged",
+            "color": "#C5000B"
+        },
+        {
+            "name": "minor",
+            "releaseType": "minor",
+            "changelogTitle": "🎁 Features",
+            "description": "Increment the minor version when merged",
+            "color": "#F1A60E"
+        },
+        {
+            "name": "patch",
+            "releaseType": "patch",
+            "changelogTitle": "🐞 Fixes",
+            "description": "Increment the patch version when merged",
+            "color": "#870048"
+        },
+        {
+            "name": "internal",
+            "changelogTitle": "🏠 Internal",
+            "description": "Changes only affect the internal API",
+            "releaseType": "none",
+            "color": "#696969",
+            "default": true
+        }
+    ]
+}

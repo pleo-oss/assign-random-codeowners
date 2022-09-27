@@ -1,0 +1,47 @@
+on: 
+  push:
+    branches:
+      - 'main'
+
+concurrency: ci-${{ github.workflow }}-${{ github.ref }}
+permissions: 
+  contents: write
+  packages: write
+  deployments: write
+  
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    name: Release
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        persist-credentials: false
+
+    - name: Setup node
+      uses: actions/setup-node@v3
+      with:
+        node-version: 16
+        cache: yarn
+
+    - name: Install packages
+      run: |
+        yarn
+
+    - name: Build
+      run: |
+        yarn build
+
+    - name: Setup SSH release token
+      uses: webfactory/ssh-agent@v0.5.4
+      with:
+        ssh-private-key: ${{ secrets.DEPLOY_PRIVATE_KEY }}
+
+    - name: Release
+      run: |
+        yarn release
+      env: 
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        NPM_TOKEN: ${{ secrets.GITHUB_TOKEN }}

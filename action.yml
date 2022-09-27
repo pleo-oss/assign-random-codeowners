@@ -1,0 +1,17 @@
+name: 'Assign Random CODEOWNERS Reviewers'
+description: 'Assign random CODEOWNERS reviewers to PRs based on the changes submitted.'
+inputs:
+  assign-from-changed-files:
+    description: 'Whether to assign CODEOWNERS based on changes files or assign the global CODEOWNERS.'
+    required: false
+    default: 'true'
+  reviewers-to-assign: 
+    description: 'How many CODEOWNERS to assign. This assigns CODEOWNERS up to (including) the given number, unless the number reviewers have already been assigned.'
+    required: true
+    default: '2'
+outputs:
+  assigned-codeowners:
+    description: 'The team or users assigned.'
+runs:
+  using: 'node16'
+  main: 'dist/assign.js'

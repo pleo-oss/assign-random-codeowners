@@ -1,0 +1,2 @@
+import { EndpointOptions } from "@octokit/types";
+export declare function isIssueLabelsUpdateOrReplace({ method, url }: EndpointOptions): boolean;

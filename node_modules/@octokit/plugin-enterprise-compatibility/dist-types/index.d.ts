@@ -1,0 +1,5 @@
+import { Octokit } from "@octokit/core";
+export declare function enterpriseCompatibility(octokit: Octokit): void;
+export declare namespace enterpriseCompatibility {
+    var VERSION: string;
+}
