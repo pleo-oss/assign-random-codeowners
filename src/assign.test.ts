@@ -222,11 +222,25 @@ describe('Reviewer selection', () => {
   const maxAssignees = 4
 
   const filesChanged = ['filename1', 'filename2']
-  const reviewers = ['@org/team1', '@org/team2', 'login1', 'login2']
+  const organisation = 'org'
+  const orgTeams = ['team1', 'team2', 'team3']
+  const reviewers = [...orgTeams, 'login1', 'login2']
 
   const merged = filesChanged.map(filename => ({ owners: reviewers, pattern: filename }))
 
   const codeowners: CodeOwnersEntry[] = [{ owners: ['globalOwner1', 'globalOwner2'], pattern: '*' }, ...merged]
+
+  const mockedRequest = jest.fn(() => ({
+    data: orgTeams.map(team => ({ slug: team })),
+  }))
+
+  const mockedOctokit = {
+    rest: {
+      teams: {
+        list: mockedRequest,
+      },
+    },
+  }
 
   it('does not select more than specified reviewers', async () => {
     const assigned = 4
@@ -235,14 +249,26 @@ describe('Reviewer selection', () => {
       teams: [],
       users: [],
     }
-    const result = selectReviewers(assigned, maxAssignees, filesChanged, codeowners)
+    const result = await selectReviewers(
+      assigned,
+      maxAssignees,
+      filesChanged,
+      codeowners,
+      organisation,
+    )(mockedOctokit as never)
     expect(result).not.toBeNull()
     expect(result).toEqual(expected)
   })
 
   it('randomly selects from changed files', async () => {
     const assigned = 0
-    const result = selectReviewers(assigned, maxAssignees, filesChanged, codeowners)
+    const result = await selectReviewers(
+      assigned,
+      maxAssignees,
+      filesChanged,
+      codeowners,
+      organisation,
+    )(mockedOctokit as never)
 
     expect(result).not.toBeNull()
     expect(result.count).toEqual(4)
@@ -250,14 +276,20 @@ describe('Reviewer selection', () => {
 
   it('randomly selects from changed files until empty', async () => {
     const filesChanged = ['filename1']
-    const teamNames = ['@org/team1', '@org/team2', '@org/team3']
+    const teamNames = ['team1', 'team2', 'team3']
     const codeowners: CodeOwnersEntry[] = [
       { owners: teamNames, pattern: filesChanged[0] },
       { pattern: '*', owners: ['globalOwner'] },
     ]
     const assigned = 0
 
-    const result = selectReviewers(assigned, maxAssignees, filesChanged, codeowners)
+    const result = await selectReviewers(
+      assigned,
+      maxAssignees,
+      filesChanged,
+      codeowners,
+      organisation,
+    )(mockedOctokit as never)
 
     expect(result).not.toBeNull()
     expect(result.count).toEqual(4)
@@ -271,7 +303,13 @@ describe('Reviewer selection', () => {
     const codeowners: CodeOwnersEntry[] = [{ pattern: '*', owners: owners }]
     const assigned = 0
 
-    const result = selectReviewers(assigned, maxAssignees, filesChanged, codeowners)
+    const result = await selectReviewers(
+      assigned,
+      maxAssignees,
+      filesChanged,
+      codeowners,
+      organisation,
+    )(mockedOctokit as never)
 
     expect(result).not.toBeNull()
     expect(result.count).toEqual(3)

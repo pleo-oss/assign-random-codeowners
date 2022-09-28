@@ -95,39 +95,42 @@ export const extractChangedFiles =
     return filenames
   }
 
-export const selectReviewers = (
-  assigned: number,
-  reviewers: number,
-  filesChanged: string[],
-  codeowners: CodeOwnersEntry[],
-) => {
-  const randomize = <T>(input?: T[]) => input?.sort(() => Math.random() - 0.5)
+export const selectReviewers =
+  (assigned: number, reviewers: number, filesChanged: string[], codeowners: CodeOwnersEntry[], owner: string) =>
+  async (octokit: Api) => {
+    const randomize = <T>(input?: T[]) => input?.sort(() => Math.random() - 0.5)
 
-  const teams = new Set<string>()
-  const users = new Set<string>()
+    const teams = new Set<string>()
+    const users = new Set<string>()
 
-  const assignees = () => teams.size + users.size + assigned
+    const assignees = () => teams.size + users.size + assigned
 
-  const stack = JSON.parse(JSON.stringify(codeowners)) as CodeOwnersEntry[] //Poor man's deep clone.
-  const randomGlobalCodeowners = randomize(stack.find(owner => owner.pattern === '*')?.owners)
+    const orgTeams = new Set((await octokit.rest.teams.list({ org: owner })).data.map(team => team.slug))
+    const stack = JSON.parse(JSON.stringify(codeowners)) as CodeOwnersEntry[] //Poor man's deep clone.
+    const randomGlobalCodeowners = randomize(stack.find(owner => owner.pattern === '*')?.owners)
 
-  while (assignees() < reviewers) {
-    const randomFile = randomize(filesChanged)?.[0]
-    const randomFileOwner = randomize(stack.find(owner => owner.pattern === randomFile)?.owners)?.shift()
-    const selected = randomFileOwner ?? randomGlobalCodeowners?.shift()
+    while (assignees() < reviewers) {
+      const randomFile = randomize(filesChanged)?.[0]
+      const randomFileOwner = randomize(stack.find(owner => owner.pattern === randomFile)?.owners)?.shift()
+      const selected = randomFileOwner ?? randomGlobalCodeowners?.shift()
 
-    if (!selected) break
+      if (!selected) break
 
-    const isTeam = /@.*\//.test(selected)
-    isTeam ? teams.add(selected) : users.add(selected)
+      if (orgTeams.has(selected)) {
+        info(`Assigning '${selected}' as an assignee team.`)
+        teams.add(selected)
+      } else {
+        info(`Assigning '${selected}' as an assignee user.`)
+        users.add(selected)
+      }
+    }
+
+    return {
+      count: assignees(),
+      teams: Array.from(teams),
+      users: Array.from(users),
+    }
   }
-
-  return {
-    count: assignees(),
-    teams: Array.from(teams),
-    users: Array.from(users),
-  }
-}
 
 export const assignReviewers = (pullRequest: PullRequestInformation, reviewers: Assignees) => async (octokit: Api) => {
   const { repo, owner, number } = pullRequest
@@ -187,7 +190,13 @@ export const run = async () => {
       process.exit(0)
     }
 
-    const selected = selectReviewers(assignedReviewers, reviewers, filesChanged, codeowners)
+    const selected = await selectReviewers(
+      assignedReviewers,
+      reviewers,
+      filesChanged,
+      codeowners,
+      pullRequest.owner,
+    )(octokit)
     info(`Selected reviewers for assignment: ${stringify(selected)}`)
 
     const assigned = await assignReviewers(pullRequest, selected)(octokit)
