@@ -10,7 +10,7 @@ A GitHub Action for randomly assigning CODEOWNERS to changes submitted in PRs.
 
 | Input                       | Type    | Required | Description                                                                                                                                                                               |
 | --------------------------- | ------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `reviewers-to-assign`       | Number  | ✅       | How many _total_ reviewers to assign to a given PR. The action will not assign more reviewers than the number given and takes already assigned reviewers into consideration when running. |
+| `reviewers-to-assign`       | number  | ✅       | How many _total_ reviewers to assign to a given PR. The action will not assign more reviewers than the number given and takes already assigned reviewers into consideration when running. |
 | `assign-from-changed-files` | boolean | ❌       | Whether to assign reviewers from the files changes in a PR. If a CODEOWNER cannot be found for a file, the action will select randomly from the global CODEOWNERS.                        |
 
 The action requires a `GITHUB_TOKEN` to be present in the `env` with the required permissions to assign PR reviewers.
