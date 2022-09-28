@@ -44,7 +44,7 @@ jobs:
           assign-from-changed-files: true
           reviewers-to-assign: 1
         env: 
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
 
       - name: Validate
         uses: actions/github-script@v6
