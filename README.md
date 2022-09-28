@@ -20,4 +20,3 @@ The action requires a `GITHUB_TOKEN` to be present in the `env` with the require
 | Input                 | Type                                                  | Description                       |
 | --------------------- | ----------------------------------------------------- | --------------------------------- |
 | `assigned-codeowners` | `{ count: number, teams: string[], users: string[] }` | The reviewers assigned to the PR. |
-|                       |                                                       |                                   |
