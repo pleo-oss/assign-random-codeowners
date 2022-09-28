@@ -27,6 +27,13 @@ jobs:
       discussions: write
 
     steps:
+      - name: Get number of assigned reviewers
+        id: get-number-of-reviewers
+        run: |
+          REVIEWERS=$(echo '${{ toJson(github.event.pull_request.requested_reviewers) }}' | jq '. | length')
+          echo $REVIEWERS
+          echo "::set-output name=reviewers::$REVIEWERS"
+
       - name: Checkout
         uses: actions/checkout@v3
         with: 
@@ -47,6 +54,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
 
       - name: Validate
+        if: steps.get-number-of-reviewers.outputs.reviewers < 1
         uses: actions/github-script@v6
         with: 
           script: |
