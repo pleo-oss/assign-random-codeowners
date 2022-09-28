@@ -12,8 +12,10 @@ import { Assignees } from './types'
 import * as core from '@actions/core'
 import { CodeOwnersEntry } from 'codeowners-utils'
 
-process.env['INPUT_REVIEWERS-TO-ASSIGN'] = '2'
-process.env['GITHUB_TOKEN'] = 'bla'
+beforeEach(() => {
+  process.env['INPUT_REVIEWERS-TO-ASSIGN'] = '2'
+  process.env['GITHUB_TOKEN'] = 'bla'
+})
 
 describe('Input handling', () => {
   it('does not throw if required inputs are present', async () => {
@@ -39,6 +41,51 @@ describe('Input handling', () => {
     expect(result.assignFromChanges).toEqual(false)
     expect(result.reviewers).toEqual(2)
     expect(result.octokit).not.toBeNull()
+  })
+
+  it('throws if GitHub token is not present', async () => {
+    const exitMock = jest.spyOn(process, 'exit').mockImplementation()
+    const infoMessages: string[] = []
+    jest.spyOn(process.stdout, 'write').mockImplementation(s => {
+      infoMessages.push(s as string)
+      return true
+    })
+
+    delete process.env['GITHUB_TOKEN']
+
+    expect(() => setup()).toThrow()
+    expect(infoMessages.some(e => /::error::.*GITHUB_TOKEN/.test(e))).toBeTruthy()
+    exitMock.mockRestore()
+  })
+
+  it("throws if 'reviewers-to-assign' is not present", async () => {
+    const exitMock = jest.spyOn(process, 'exit').mockImplementation()
+    const infoMessages: string[] = []
+    jest.spyOn(process.stdout, 'write').mockImplementation(s => {
+      infoMessages.push(s as string)
+      return true
+    })
+
+    delete process.env['INPUT_REVIEWERS-TO-ASSIGN']
+
+    expect(() => setup()).toThrow()
+
+    exitMock.mockRestore()
+  })
+
+  it("does not throw if 'assign-from-changed-files' is not present", async () => {
+    const exitMock = jest.spyOn(process, 'exit').mockImplementation()
+    const infoMessages: string[] = []
+    jest.spyOn(process.stdout, 'write').mockImplementation(s => {
+      infoMessages.push(s as string)
+      return true
+    })
+
+    delete process.env['INPUT_ASSIGN-FROM-CHANGED-FILES']
+
+    expect(() => setup()).not.toThrow()
+
+    exitMock.mockRestore()
   })
 })
 
@@ -82,10 +129,61 @@ describe('Payload handling', () => {
       repo: 'repo',
     })
   })
+
+  it('returns undefined for missing pull request payloads', () => {
+    const context: Context = {
+      payload: {
+        issue: {
+          number: 1,
+        },
+      },
+      eventName: 'pull-request',
+      sha: '1',
+      ref: '1',
+      workflow: 'workflow',
+      action: 'action',
+      actor: 'actor',
+      job: 'job',
+      runNumber: 1,
+      runId: 1,
+      apiUrl: 'https://some-url.com',
+      serverUrl: 'https://some-url.com',
+      graphqlUrl: 'https://some-url.com',
+      issue: {
+        owner: 'owner',
+        repo: 'repo',
+        number: 1,
+      },
+      repo: {
+        owner: 'owner',
+        repo: 'repo',
+      },
+    }
+
+    const result = extractPullRequestPayload(context)
+    expect(result).toBe(undefined)
+  })
+
+  it('returns undefined for missing repository information in payloads', () => {
+    const context = {
+      payload: {
+        pull_request: {
+          number: 1,
+        },
+      },
+      repo: {
+        owner: undefined,
+        repo: undefined,
+      },
+    }
+
+    const result = extractPullRequestPayload(context as never)
+    expect(result).toBe(undefined)
+  })
 })
 
 describe("Calling GitHub's API", () => {
-  it('can extract information from pull request payloads', async () => {
+  it('can extract assignee count from pull request payloads', async () => {
     const teams: { name: string }[] = [{ name: 'team1' }, { name: 'team2' }]
     const users: { login: string }[] = [{ login: 'login1' }, { login: 'login2' }]
 
@@ -120,6 +218,26 @@ describe("Calling GitHub's API", () => {
     expect(infoMock).toHaveBeenCalledWith(JSON.stringify(users.map(t => t.login)))
   })
 
+  it('handles missing data in pull request payloads', async () => {
+    const mockedOctokit = {
+      rest: {
+        pulls: {
+          listRequestedReviewers: jest.fn(() => {
+            throw Error('💥')
+          }),
+        },
+      },
+    }
+
+    const pullRequest = {
+      number: 1,
+      owner: 'owner',
+      repo: 'repo',
+    }
+
+    expect(() => extractAssigneeCount(pullRequest)(mockedOctokit as never)).rejects.toBeTruthy()
+  })
+
   it('can extract changed files if not set', async () => {
     const files = [{ filename: 'file1' }, { filename: 'file2' }]
     const filenames = files.map(f => f.filename)
@@ -143,10 +261,31 @@ describe("Calling GitHub's API", () => {
 
     const infoMock = jest.spyOn(core, 'info').mockImplementation()
 
-    const result = await extractChangedFiles(false)(pullRequest as never, mockedOctokit as never)
+    const result = await extractChangedFiles(false, pullRequest as never)(mockedOctokit as never)
 
     expect(result).toEqual([])
     expect(infoMock).not.toHaveBeenCalledWith(filenames)
+  })
+
+  it('handles missing data in PR file payloads', async () => {
+    const mockedOctokit = {
+      rest: {
+        pulls: {
+          listFiles: async () => ({
+            undefined,
+          }),
+        },
+      },
+    }
+
+    const pullRequest = {
+      number: 1,
+      owner: 'owner',
+      repo: 'repo',
+    }
+
+    const result = await extractChangedFiles(false, pullRequest)(mockedOctokit as never)
+    expect(result).toEqual([])
   })
 
   it('can extract changed files if set', async () => {
@@ -172,7 +311,7 @@ describe("Calling GitHub's API", () => {
 
     const infoMock = jest.spyOn(core, 'info').mockImplementation()
 
-    const result = await extractChangedFiles(true)(pullRequest as never, mockedOctokit as never)
+    const result = await extractChangedFiles(true, pullRequest as never)(mockedOctokit as never)
 
     expect(result).toEqual(filenames)
     expect(infoMock).toHaveBeenCalledWith(JSON.stringify(filenames))
@@ -277,5 +416,12 @@ describe('Reviewer selection', () => {
     expect(result).not.toBeNull()
     expect(result.count).toEqual(3)
     expect(result.users.every(name => owners.includes(name))).toBeTruthy()
+  })
+
+  it('handles empty CODEOWNERS', async () => {
+    const assigned = 0
+    const result = selectReviewers(assigned, maxAssignees, filesChanged, [])
+
+    expect(result).toEqual({ count: 0, teams: [], users: [] })
   })
 })
