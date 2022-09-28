@@ -1,6 +1,6 @@
 import { getInput, getBooleanInput, error, info, setOutput, setFailed } from '@actions/core'
 import { getOctokit, context } from '@actions/github'
-import fs from 'fs'
+import { existsSync, promises as fs } from 'fs'
 import { CodeOwnersEntry, parse } from 'codeowners-utils'
 import { Context } from '@actions/github/lib/context'
 import { Api } from '@octokit/plugin-rest-endpoint-methods/dist-types/types'
@@ -53,20 +53,22 @@ const validatePullRequest = (pullRequest?: PullRequestInformation) => {
 }
 
 export const extractAssigneeCount = (pullRequest: PullRequestInformation) => async (octokit: Api) => {
-  const { owner, repo } = pullRequest
+  const { owner, repo, number: pull_number } = pullRequest
 
-  const currentReviewers = await octokit.rest.pulls.listRequestedReviewers({
-    owner,
-    repo,
-    pull_number: pullRequest.number,
-  })
+  info(`Requesting current reviewers in PR #${pull_number} via the GitHub API.`)
   const {
     data: { teams, users },
-  } = currentReviewers
-  info('Found assigned reviewer teams:')
+    status,
+  } = await octokit.rest.pulls.listRequestedReviewers({
+    owner,
+    repo,
+    pull_number,
+  })
+
+  info(`[${status}] Found assigned reviewer teams:`)
   const teamNames = teams.map(team => team.name)
   info(stringify(teamNames))
-  info('Found assigned reviewer users:')
+  info(`[${status}] Found assigned reviewer users:`)
   const userNames = users.map(user => user.login)
   info(stringify(userNames))
 
@@ -77,16 +79,17 @@ export const extractChangedFiles =
   (assignFromChanges: boolean) => async (pullRequest: PullRequestInformation, octokit: Api) => {
     if (!assignFromChanges) return []
 
-    const { owner, repo, number } = pullRequest
+    const { owner, repo, number: pull_number } = pullRequest
 
-    const { data: changedFiles } = await octokit.rest.pulls.listFiles({
+    info(`Requesting files changed in PR #${pull_number} via the GitHub API.`)
+    const { data: changedFiles, status } = await octokit.rest.pulls.listFiles({
       owner,
       repo,
-      pull_number: number,
+      pull_number,
     })
 
     const filenames = changedFiles.map(file => file.filename)
-    info('Found PR files:')
+    info(`[${status}] Found changed PR files:`)
     info(stringify(filenames))
 
     return filenames
@@ -115,8 +118,14 @@ export const selectReviewers = (
 
     if (!selected) break
 
-    const isTeam = /@.*\//.test(selected)
-    isTeam ? teams.add(selected) : users.add(selected)
+    if (/@.*\//.test(selected)) {
+      info(`Assigning '${selected}' as an assignee team.`)
+      const teamSlug = selected.replace(/@.*\//, '')
+      teams.add(teamSlug)
+    } else {
+      info(`Assigning '${selected}' as an assignee user.`)
+      users.add(selected)
+    }
   }
 
   return {
@@ -129,15 +138,18 @@ export const selectReviewers = (
 export const assignReviewers = (pullRequest: PullRequestInformation, reviewers: Assignees) => async (octokit: Api) => {
   const { repo, owner, number } = pullRequest
   const { teams, users } = reviewers
-  const assigned = await octokit.rest.pulls.requestReviewers({
+
+  info('Requesting reviewers via the GitHub API.')
+  const { data: assigned, status } = await octokit.rest.pulls.requestReviewers({
     owner,
     repo,
     pull_number: number,
     team_reviewers: teams,
     reviewers: users,
   })
-  const requestedReviewers = assigned.data.requested_reviewers?.map(user => user.login)
-  const requestedTeams = assigned.data.requested_teams?.map(team => team.name)
+
+  const requestedReviewers = assigned.requested_reviewers?.map(user => user.login)
+  const requestedTeams = assigned.requested_teams?.map(team => team.name)
 
   if (requestedReviewers && requestedTeams) {
     const requested: Assignees = {
@@ -146,7 +158,7 @@ export const assignReviewers = (pullRequest: PullRequestInformation, reviewers: 
       users: requestedReviewers,
     }
 
-    info('Assigned reviewers: ')
+    info(`[${status}] Assigned reviewers: `)
     info(stringify(requested))
     return requested
   }
@@ -160,7 +172,7 @@ export const run = async () => {
   try {
     const { assignFromChanges, reviewers, octokit } = setup()
 
-    const codeownersLocation = validPaths.find(path => fs.existsSync(path))
+    const codeownersLocation = validPaths.find(path => existsSync(path))
     if (!codeownersLocation) {
       error(`Did not find a CODEOWNERS file in: ${stringify(validPaths)}.`)
       process.exit(1)
@@ -170,7 +182,8 @@ export const run = async () => {
     const pullRequest = validatePullRequest(extractPullRequestPayload(context))
 
     const filesChanged = await extractChangedFiles(assignFromChanges)(pullRequest, octokit)
-    const codeowners = parse(codeownersLocation)
+    const codeownersContents = await fs.readFile(codeownersLocation, { encoding: 'utf-8' })
+    const codeowners = parse(codeownersContents)
     info('Parsed CODEOWNERS:')
     info(stringify(codeowners))
 

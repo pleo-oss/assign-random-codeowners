@@ -1,5 +1,8 @@
 name: 'Assign Random CODEOWNERS Reviewers'
 description: 'Assign random CODEOWNERS reviewers to PRs based on the changes submitted.'
+branding:
+  icon: 'user-plus'
+  color: 'red'
 inputs:
   assign-from-changed-files:
     description: 'Whether to assign CODEOWNERS based on changes files or assign the global CODEOWNERS.'

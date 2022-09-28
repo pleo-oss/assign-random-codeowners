@@ -1,12 +1,9 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.run = exports.assignReviewers = exports.selectReviewers = exports.extractChangedFiles = exports.extractAssigneeCount = exports.extractPullRequestPayload = exports.setup = exports.validPaths = void 0;
 const core_1 = require("@actions/core");
 const github_1 = require("@actions/github");
-const fs_1 = __importDefault(require("fs"));
+const fs_1 = require("fs");
 const codeowners_utils_1 = require("codeowners-utils");
 exports.validPaths = ['CODEOWNERS', '.github/CODEOWNERS', 'docs/CODEOWNERS'];
 const setup = () => {
@@ -46,17 +43,17 @@ const validatePullRequest = (pullRequest) => {
     return pullRequest;
 };
 const extractAssigneeCount = (pullRequest) => async (octokit) => {
-    const { owner, repo } = pullRequest;
-    const currentReviewers = await octokit.rest.pulls.listRequestedReviewers({
+    const { owner, repo, number: pull_number } = pullRequest;
+    (0, core_1.info)(`Requesting current reviewers in PR #${pull_number} via the GitHub API.`);
+    const { data: { teams, users }, status, } = await octokit.rest.pulls.listRequestedReviewers({
         owner,
         repo,
-        pull_number: pullRequest.number,
+        pull_number,
     });
-    const { data: { teams, users }, } = currentReviewers;
-    (0, core_1.info)('Found assigned reviewer teams:');
+    (0, core_1.info)(`[${status}] Found assigned reviewer teams:`);
     const teamNames = teams.map(team => team.name);
     (0, core_1.info)(stringify(teamNames));
-    (0, core_1.info)('Found assigned reviewer users:');
+    (0, core_1.info)(`[${status}] Found assigned reviewer users:`);
     const userNames = users.map(user => user.login);
     (0, core_1.info)(stringify(userNames));
     return teams.length + users.length;
@@ -65,14 +62,15 @@ exports.extractAssigneeCount = extractAssigneeCount;
 const extractChangedFiles = (assignFromChanges) => async (pullRequest, octokit) => {
     if (!assignFromChanges)
         return [];
-    const { owner, repo, number } = pullRequest;
-    const { data: changedFiles } = await octokit.rest.pulls.listFiles({
+    const { owner, repo, number: pull_number } = pullRequest;
+    (0, core_1.info)(`Requesting files changed in PR #${pull_number} via the GitHub API.`);
+    const { data: changedFiles, status } = await octokit.rest.pulls.listFiles({
         owner,
         repo,
-        pull_number: number,
+        pull_number,
     });
     const filenames = changedFiles.map(file => file.filename);
-    (0, core_1.info)('Found PR files:');
+    (0, core_1.info)(`[${status}] Found changed PR files:`);
     (0, core_1.info)(stringify(filenames));
     return filenames;
 };
@@ -90,8 +88,15 @@ const selectReviewers = (assigned, reviewers, filesChanged, codeowners) => {
         const selected = randomFileOwner ?? randomGlobalCodeowners?.shift();
         if (!selected)
             break;
-        const isTeam = /@.*\//.test(selected);
-        isTeam ? teams.add(selected) : users.add(selected);
+        if (/@.*\//.test(selected)) {
+            (0, core_1.info)(`Assigning '${selected}' as an assignee team.`);
+            const teamSlug = selected.replace(/@.*\//, '');
+            teams.add(teamSlug);
+        }
+        else {
+            (0, core_1.info)(`Assigning '${selected}' as an assignee user.`);
+            users.add(selected);
+        }
     }
     return {
         count: assignees(),
@@ -103,22 +108,23 @@ exports.selectReviewers = selectReviewers;
 const assignReviewers = (pullRequest, reviewers) => async (octokit) => {
     const { repo, owner, number } = pullRequest;
     const { teams, users } = reviewers;
-    const assigned = await octokit.rest.pulls.requestReviewers({
+    (0, core_1.info)('Requesting reviewers via the GitHub API.');
+    const { data: assigned, status } = await octokit.rest.pulls.requestReviewers({
         owner,
         repo,
         pull_number: number,
         team_reviewers: teams,
         reviewers: users,
     });
-    const requestedReviewers = assigned.data.requested_reviewers?.map(user => user.login);
-    const requestedTeams = assigned.data.requested_teams?.map(team => team.name);
+    const requestedReviewers = assigned.requested_reviewers?.map(user => user.login);
+    const requestedTeams = assigned.requested_teams?.map(team => team.name);
     if (requestedReviewers && requestedTeams) {
         const requested = {
             count: requestedReviewers.length + requestedTeams.length,
             teams: requestedTeams,
             users: requestedReviewers,
         };
-        (0, core_1.info)('Assigned reviewers: ');
+        (0, core_1.info)(`[${status}] Assigned reviewers: `);
         (0, core_1.info)(stringify(requested));
         return requested;
     }
@@ -130,7 +136,7 @@ const run = async () => {
         return;
     try {
         const { assignFromChanges, reviewers, octokit } = (0, exports.setup)();
-        const codeownersLocation = exports.validPaths.find(path => fs_1.default.existsSync(path));
+        const codeownersLocation = exports.validPaths.find(path => (0, fs_1.existsSync)(path));
         if (!codeownersLocation) {
             (0, core_1.error)(`Did not find a CODEOWNERS file in: ${stringify(exports.validPaths)}.`);
             process.exit(1);
@@ -138,7 +144,8 @@ const run = async () => {
         (0, core_1.info)(`Found CODEOWNERS at ${codeownersLocation}`);
         const pullRequest = validatePullRequest((0, exports.extractPullRequestPayload)(github_1.context));
         const filesChanged = await (0, exports.extractChangedFiles)(assignFromChanges)(pullRequest, octokit);
-        const codeowners = (0, codeowners_utils_1.parse)(codeownersLocation);
+        const codeownersContents = await fs_1.promises.readFile(codeownersLocation, { encoding: 'utf-8' });
+        const codeowners = (0, codeowners_utils_1.parse)(codeownersContents);
         (0, core_1.info)('Parsed CODEOWNERS:');
         (0, core_1.info)(stringify(codeowners));
         const assignedReviewers = await (0, exports.extractAssigneeCount)(pullRequest)(octokit);

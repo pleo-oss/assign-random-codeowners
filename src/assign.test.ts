@@ -222,7 +222,8 @@ describe('Reviewer selection', () => {
   const maxAssignees = 4
 
   const filesChanged = ['filename1', 'filename2']
-  const reviewers = ['@org/team1', '@org/team2', 'login1', 'login2']
+  const orgTeams = ['@org/team1', '@org/team2', '@org/team3']
+  const reviewers = [...orgTeams, 'login1', 'login2']
 
   const merged = filesChanged.map(filename => ({ owners: reviewers, pattern: filename }))
 
@@ -261,7 +262,7 @@ describe('Reviewer selection', () => {
 
     expect(result).not.toBeNull()
     expect(result.count).toEqual(4)
-    expect(result.teams.every(name => teamNames.includes(name))).toBeTruthy()
+    expect(result.teams.every(name => teamNames.map(t => t.replace(/@.*\//, '')).includes(name))).toBeTruthy()
     expect(result.users).toEqual(['globalOwner'])
   })
 

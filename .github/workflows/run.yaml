@@ -22,29 +22,43 @@ jobs:
   assign:
     runs-on: ubuntu-latest
     name: Assign Reviewers
-    strategy:
-      fail-fast: true
-      matrix:
-        assign-from-changed-files: [true, false]
-        reviewers-to-assign: [0, 1, 2]
+    permissions:
+      pull-requests: write
+      discussions: write
+
     steps:
+      - name: Get number of assigned reviewers
+        id: get-number-of-reviewers
+        run: |
+          REVIEWERS=$(echo '${{ toJson(github.event.pull_request.requested_reviewers) }}' | jq '. | length')
+          echo $REVIEWERS
+          echo "::set-output name=reviewers::$REVIEWERS"
+
       - name: Checkout
         uses: actions/checkout@v3
+        with: 
+          persist-credentials: false
+
+      - name: Setup elevated SSH token
+        uses: webfactory/ssh-agent@v0.5.4
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_PRIVATE_KEY }}
 
       - name: Assign reviewers
         uses: ./
         id: assign
         with:
-          assign-from-changed-files: '${{ matrix.assign-from-changed-files }}'
-          reviewers-to-assign: '${{ matrix.reviewers-to-assign }}'
+          assign-from-changed-files: true
+          reviewers-to-assign: 1
         env: 
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
 
       - name: Validate
+        if: steps.get-number-of-reviewers.outputs.reviewers < 1
         uses: actions/github-script@v6
         with: 
           script: |
             const result = JSON.parse('${{ steps.assign.outputs.assigned-codeowners }}')
             
-            if (!result || result.count !== ${{ matrix.reviewers-to-assign }}) 
+            if (!result || result.count !== 1)
               process.exit(1)
