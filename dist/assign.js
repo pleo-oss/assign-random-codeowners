@@ -75,12 +75,11 @@ const extractChangedFiles = (assignFromChanges) => async (pullRequest, octokit) 
     return filenames;
 };
 exports.extractChangedFiles = extractChangedFiles;
-const selectReviewers = (assigned, reviewers, filesChanged, codeowners, owner) => async (octokit) => {
+const selectReviewers = (assigned, reviewers, filesChanged, codeowners) => {
     const randomize = (input) => input?.sort(() => Math.random() - 0.5);
     const teams = new Set();
     const users = new Set();
     const assignees = () => teams.size + users.size + assigned;
-    const orgTeams = new Set((await octokit.rest.teams.list({ org: owner })).data.map(team => team.slug));
     const stack = JSON.parse(JSON.stringify(codeowners)); //Poor man's deep clone.
     const randomGlobalCodeowners = randomize(stack.find(owner => owner.pattern === '*')?.owners);
     while (assignees() < reviewers) {
@@ -89,9 +88,10 @@ const selectReviewers = (assigned, reviewers, filesChanged, codeowners, owner) =
         const selected = randomFileOwner ?? randomGlobalCodeowners?.shift();
         if (!selected)
             break;
-        if (orgTeams.has(selected)) {
+        if (/@.*\//.test(selected)) {
             (0, core_1.info)(`Assigning '${selected}' as an assignee team.`);
-            teams.add(selected);
+            const teamSlug = selected.replace(/@.*\//, '');
+            teams.add(teamSlug);
         }
         else {
             (0, core_1.info)(`Assigning '${selected}' as an assignee user.`);
@@ -153,7 +153,7 @@ const run = async () => {
             (0, core_1.info)(`Saw ${assignedReviewers} assigned reviewers - skipping CODEOWNERS assignment.`);
             process.exit(0);
         }
-        const selected = await (0, exports.selectReviewers)(assignedReviewers, reviewers, filesChanged, codeowners, pullRequest.owner)(octokit);
+        const selected = (0, exports.selectReviewers)(assignedReviewers, reviewers, filesChanged, codeowners);
         (0, core_1.info)(`Selected reviewers for assignment: ${stringify(selected)}`);
         const assigned = await (0, exports.assignReviewers)(pullRequest, selected)(octokit);
         if (!assigned) {
