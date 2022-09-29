@@ -1,3 +1,27 @@
+# v0.2.0 (Thu Sep 29 2022)
+
+#### 🎁 Features
+
+- Support assigning individuals from reviewer teams [#8](https://github.com/pleo-oss/assign-random-codeowners/pull/8) ([@andersfischernielsen](https://github.com/andersfischernielsen))
+
+#### ⚠️ Pushed to `main`
+
+- Update README.md ([@andersfischernielsen](https://github.com/andersfischernielsen))
+- Remove redundant release steps ([@andersfischernielsen](https://github.com/andersfischernielsen))
+- Skip tests on 'main' ([@andersfischernielsen](https://github.com/andersfischernielsen))
+- Simplify distribution and release jobs ([@andersfischernielsen](https://github.com/andersfischernielsen))
+
+#### 🏠 Internal
+
+- Restore tsconfig to repository state post-build when releasing [#9](https://github.com/pleo-oss/assign-random-codeowners/pull/9) ([@andersfischernielsen](https://github.com/andersfischernielsen))
+- Improve testing [#3](https://github.com/pleo-oss/assign-random-codeowners/pull/3) ([@andersfischernielsen](https://github.com/andersfischernielsen))
+
+#### Authors: 1
+
+- Anders Fischer-Nielsen ([@andersfischernielsen](https://github.com/andersfischernielsen))
+
+---
+
 # v0.1.0 (Thu Sep 29 2022)
 
 #### 🎁 Features
