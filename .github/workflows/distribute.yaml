@@ -26,19 +26,15 @@ jobs:
         node-version: 16
         cache: yarn
 
-    - name: Install jq
-      run: |
-        sudo apt-get install -y jq
-
     - name: Install production packages
       run: |
         yarn install --production
 
     - name: Remove development types
       run: |
-        cat tsconfig.json | jq '.compilerOptions.types = null' > tsconfig.json
-        
         echo "Modified 'tsconfig.json':"
+        cat tsconfig.json | jq '.compilerOptions.types = null'
+        
         cat tsconfig.json
 
     - name: Build
