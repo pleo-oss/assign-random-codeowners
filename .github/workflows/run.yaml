@@ -51,6 +51,7 @@ jobs:
         id: assign
         with:
           assign-from-changed-files: true
+          assign-individuals-from-teams: true
           reviewers-to-assign: 1
         env: 
           GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
