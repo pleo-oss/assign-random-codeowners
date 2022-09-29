@@ -2,6 +2,8 @@ name: Test
 
 on: 
   push:
+    branches-ignore:
+      - "main"
 
 concurrency: ci-${{ github.workflow }}-${{ github.ref }}
 
