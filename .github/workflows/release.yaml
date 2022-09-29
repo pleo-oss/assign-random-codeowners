@@ -78,14 +78,6 @@ jobs:
         node-version: 16
         cache: yarn
 
-    - name: Install packages
-      run: |
-        yarn
-
-    - name: Build
-      run: |
-        yarn build
-
     - name: Setup SSH release token
       uses: webfactory/ssh-agent@v0.5.4
       with:
@@ -93,7 +85,7 @@ jobs:
 
     - name: Release
       run: |
-        yarn release
+        npx auto shipit
       env: 
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         NPM_TOKEN: ${{ secrets.GITHUB_TOKEN }}
