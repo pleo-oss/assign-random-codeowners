@@ -80,6 +80,6 @@ jobs:
 
     - name: Release
       run: |
-        npx --package=@auto-it/git-tag --package=auto -- auto version
+        npx --package=@auto-it/git-tag --package=auto -- auto shipit
       env: 
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
