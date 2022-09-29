@@ -12,9 +12,9 @@ permissions:
   deployments: write
   
 jobs:
-  distribute:
+  release:
     runs-on: ubuntu-latest
-    name: Distribute
+    name: Release
 
     steps:
     - name: Checkout code
@@ -55,18 +55,6 @@ jobs:
       env: 
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Push changes
-      uses: ad-m/github-push-action@v0.6.0
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        branch: main
-
-  release:
-    runs-on: ubuntu-latest
-    needs: distribute
-    name: Release
-
-    steps:
     - name: Checkout code
       uses: actions/checkout@v3
       with:
