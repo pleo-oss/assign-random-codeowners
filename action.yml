@@ -12,6 +12,10 @@ inputs:
     description: 'How many CODEOWNERS to assign. This assigns CODEOWNERS up to (including) the given number, unless the number reviewers have already been assigned.'
     required: true
     default: '2'
+  assign-individuals-from-teams: 
+    description: 'Whether to pick and assign random team members from CODEOWNER teams as reviewers.'
+    required: false
+    default: 'false'
 outputs:
   assigned-codeowners:
     description: 'The team or users assigned.'
