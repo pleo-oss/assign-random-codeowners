@@ -430,7 +430,7 @@ describe('Reviewer selection', () => {
 
   const codeowners: CodeOwnersEntry[] = [{ owners: ['globalOwner1', 'globalOwner2'], pattern: '*' }, ...merged]
 
-  const randomTeamAssignee = async (_: string) => teamMembers
+  const randomTeamAssignee = async () => teamMembers
 
   it('does not select more than specified reviewers', async () => {
     const assigned = 4

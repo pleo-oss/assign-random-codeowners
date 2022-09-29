@@ -37,13 +37,6 @@ const extractPullRequestPayload = (context) => {
         : undefined;
 };
 exports.extractPullRequestPayload = extractPullRequestPayload;
-const validatePullRequest = (pullRequest) => {
-    if (!pullRequest) {
-        (0, core_1.error)("Pull Request payload was not found. Is the action triggered by the 'pull-request' event?");
-        process.exit(1);
-    }
-    return pullRequest;
-};
 const extractAssigneeCount = (pullRequest) => async (octokit) => {
     const { owner, repo, number: pull_number } = pullRequest;
     (0, core_1.info)(`Requesting current reviewers in PR #${pull_number} via the GitHub API.`);
@@ -168,8 +161,11 @@ const run = async () => {
             process.exit(1);
         }
         (0, core_1.info)(`Found CODEOWNERS at ${codeownersLocation}`);
-        const pullRequest = validatePullRequest((0, exports.extractPullRequestPayload)(github_1.context));
-        const changedFiles = await (0, exports.extractChangedFiles)(assignFromChanges, pullRequest)(octokit);
+        const pullRequest = (0, exports.extractPullRequestPayload)(github_1.context);
+        if (!pullRequest) {
+            (0, core_1.error)("Pull Request payload was not found. Is the action triggered by the 'pull-request' event?");
+            process.exit(1);
+        }
         const codeownersContents = await fs_1.promises.readFile(codeownersLocation, { encoding: 'utf-8' });
         const codeowners = (0, codeowners_utils_1.parse)(codeownersContents);
         (0, core_1.info)('Parsed CODEOWNERS:');
@@ -181,6 +177,7 @@ const run = async () => {
         }
         const assigneeSelection = async (teamSlug) => (0, exports.randomTeamAssignee)(pullRequest.owner, teamSlug)(octokit);
         const selectionOptions = { assignedReviewers, reviewers, assignIndividuals };
+        const changedFiles = await (0, exports.extractChangedFiles)(assignFromChanges, pullRequest)(octokit);
         const selected = await (0, exports.selectReviewers)(changedFiles, codeowners, assigneeSelection, selectionOptions);
         (0, core_1.info)(`Selected reviewers for assignment: ${stringify(selected)}`);
         const assigned = await (0, exports.assignReviewers)(pullRequest, selected)(octokit);
