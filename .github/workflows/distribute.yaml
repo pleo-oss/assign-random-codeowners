@@ -36,7 +36,7 @@ jobs:
 
     - name: Remove development types
       run: |
-        jq '.compilerOptions.types = null' tsconfig.json > tsconfig.json
+        cat tsconfig.json | jq '.compilerOptions.types = null' > tsconfig.json
         
         echo "Modified 'tsconfig.json':"
         cat tsconfig.json
