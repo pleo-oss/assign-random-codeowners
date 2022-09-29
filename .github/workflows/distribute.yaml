@@ -26,6 +26,10 @@ jobs:
         node-version: 16
         cache: yarn
 
+    - name: Install jq
+      run: |
+        sudo apt-get install -y jq
+
     - name: Install production packages
       run: |
         yarn install --production
