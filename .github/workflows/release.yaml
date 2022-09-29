@@ -73,12 +73,6 @@ jobs:
         persist-credentials: false
         fetch-depth: 0
 
-    - name: Setup node
-      uses: actions/setup-node@v3
-      with:
-        node-version: 16
-        cache: yarn
-
     - name: Setup SSH release token
       uses: webfactory/ssh-agent@v0.5.4
       with:
@@ -89,4 +83,3 @@ jobs:
         npx auto shipit
       env: 
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        NPM_TOKEN: ${{ secrets.GITHUB_TOKEN }}
