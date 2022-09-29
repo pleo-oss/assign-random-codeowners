@@ -35,6 +35,7 @@ jobs:
 
     - name: Remove development types
       run: |
+        cp tsconfig.json tsconfig-original.json
         echo "$(cat tsconfig.json | jq '.compilerOptions.types = ["node"]')" > tsconfig.json
         
         echo "Modified 'tsconfig.json':"
@@ -43,6 +44,13 @@ jobs:
     - name: Build
       run: |
         yarn build
+
+    - name: Restore development types
+      run: |
+        mv tsconfig-original.json tsconfig.json
+        
+        echo "Restored 'tsconfig.json':"
+        cat tsconfig.json
 
     - name: Add production dependencies
       uses: EndBug/add-and-commit@v9
