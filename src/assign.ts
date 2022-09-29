@@ -48,14 +48,6 @@ export const extractPullRequestPayload = (context: Context) => {
     : undefined
 }
 
-const validatePullRequest = (pullRequest?: PullRequestInformation) => {
-  if (!pullRequest) {
-    error("Pull Request payload was not found. Is the action triggered by the 'pull-request' event?")
-    process.exit(1)
-  }
-  return pullRequest
-}
-
 export const extractAssigneeCount = (pullRequest: PullRequestInformation) => async (octokit: Api) => {
   const { owner, repo, number: pull_number } = pullRequest
 
@@ -210,7 +202,11 @@ export const run = async () => {
     }
     info(`Found CODEOWNERS at ${codeownersLocation}`)
 
-    const pullRequest = validatePullRequest(extractPullRequestPayload(context))
+    const pullRequest = extractPullRequestPayload(context)
+    if (!pullRequest) {
+      error("Pull Request payload was not found. Is the action triggered by the 'pull-request' event?")
+      process.exit(1)
+    }
 
     const codeownersContents = await fs.readFile(codeownersLocation, { encoding: 'utf-8' })
     const codeowners = parse(codeownersContents)
