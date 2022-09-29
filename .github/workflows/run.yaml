@@ -1,3 +1,5 @@
+name: Assign Reviewers
+
 on: 
   pull_request:
     types:
