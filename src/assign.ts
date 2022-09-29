@@ -212,7 +212,6 @@ export const run = async () => {
 
     const pullRequest = validatePullRequest(extractPullRequestPayload(context))
 
-    const changedFiles = await extractChangedFiles(assignFromChanges, pullRequest)(octokit)
     const codeownersContents = await fs.readFile(codeownersLocation, { encoding: 'utf-8' })
     const codeowners = parse(codeownersContents)
     info('Parsed CODEOWNERS:')
@@ -225,8 +224,8 @@ export const run = async () => {
     }
 
     const assigneeSelection = async (teamSlug: string) => randomTeamAssignee(pullRequest.owner, teamSlug)(octokit)
-
     const selectionOptions = { assignedReviewers, reviewers, assignIndividuals }
+    const changedFiles = await extractChangedFiles(assignFromChanges, pullRequest)(octokit)
     const selected = await selectReviewers(changedFiles, codeowners, assigneeSelection, selectionOptions)
     info(`Selected reviewers for assignment: ${stringify(selected)}`)
 
