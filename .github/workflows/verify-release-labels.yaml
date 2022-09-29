@@ -1,4 +1,5 @@
-name: Verify Release
+name: Verify Release Labels
+
 on:
   pull_request:
     types:
