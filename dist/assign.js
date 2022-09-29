@@ -9,7 +9,7 @@ exports.validPaths = ['CODEOWNERS', '.github/CODEOWNERS', 'docs/CODEOWNERS'];
 const setup = () => {
     const toAssign = (0, core_1.getInput)('reviewers-to-assign', { required: true });
     const reviewers = Number.parseInt(toAssign);
-    const assignFromChanges = (0, core_1.getBooleanInput)('assign-from-changed-files');
+    const assignFromChanges = (0, core_1.getInput)('assign-from-changed-files') === 'true' || (0, core_1.getInput)('assign-from-changed-files') === 'True';
     const token = process.env['GITHUB_TOKEN'];
     if (!token) {
         (0, core_1.error)(`Did not find a GITHUB_TOKEN in the environment.`);
@@ -59,7 +59,7 @@ const extractAssigneeCount = (pullRequest) => async (octokit) => {
     return teams.length + users.length;
 };
 exports.extractAssigneeCount = extractAssigneeCount;
-const extractChangedFiles = (assignFromChanges) => async (pullRequest, octokit) => {
+const extractChangedFiles = (assignFromChanges, pullRequest) => async (octokit) => {
     if (!assignFromChanges)
         return [];
     const { owner, repo, number: pull_number } = pullRequest;
@@ -143,7 +143,7 @@ const run = async () => {
         }
         (0, core_1.info)(`Found CODEOWNERS at ${codeownersLocation}`);
         const pullRequest = validatePullRequest((0, exports.extractPullRequestPayload)(github_1.context));
-        const filesChanged = await (0, exports.extractChangedFiles)(assignFromChanges)(pullRequest, octokit);
+        const filesChanged = await (0, exports.extractChangedFiles)(assignFromChanges, pullRequest)(octokit);
         const codeownersContents = await fs_1.promises.readFile(codeownersLocation, { encoding: 'utf-8' });
         const codeowners = (0, codeowners_utils_1.parse)(codeownersContents);
         (0, core_1.info)('Parsed CODEOWNERS:');

@@ -1,4 +1,4 @@
-import { getInput, getBooleanInput, error, info, setOutput, setFailed } from '@actions/core'
+import { getInput, error, info, setOutput, setFailed } from '@actions/core'
 import { getOctokit, context } from '@actions/github'
 import { existsSync, promises as fs } from 'fs'
 import { CodeOwnersEntry, parse } from 'codeowners-utils'
@@ -11,7 +11,8 @@ export const validPaths = ['CODEOWNERS', '.github/CODEOWNERS', 'docs/CODEOWNERS'
 export const setup = (): ActionOptions => {
   const toAssign = getInput('reviewers-to-assign', { required: true })
   const reviewers = Number.parseInt(toAssign)
-  const assignFromChanges = getBooleanInput('assign-from-changed-files')
+  const assignFromChanges =
+    getInput('assign-from-changed-files') === 'true' || getInput('assign-from-changed-files') === 'True'
 
   const token = process.env['GITHUB_TOKEN']
   if (!token) {
@@ -76,7 +77,7 @@ export const extractAssigneeCount = (pullRequest: PullRequestInformation) => asy
 }
 
 export const extractChangedFiles =
-  (assignFromChanges: boolean) => async (pullRequest: PullRequestInformation, octokit: Api) => {
+  (assignFromChanges: boolean, pullRequest: PullRequestInformation) => async (octokit: Api) => {
     if (!assignFromChanges) return []
 
     const { owner, repo, number: pull_number } = pullRequest
@@ -181,7 +182,7 @@ export const run = async () => {
 
     const pullRequest = validatePullRequest(extractPullRequestPayload(context))
 
-    const filesChanged = await extractChangedFiles(assignFromChanges)(pullRequest, octokit)
+    const filesChanged = await extractChangedFiles(assignFromChanges, pullRequest)(octokit)
     const codeownersContents = await fs.readFile(codeownersLocation, { encoding: 'utf-8' })
     const codeowners = parse(codeownersContents)
     info('Parsed CODEOWNERS:')
