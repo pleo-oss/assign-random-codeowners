@@ -32,9 +32,9 @@ jobs:
 
     - name: Remove development types
       run: |
-        echo "Modified 'tsconfig.json':"
-        echo "$(cat tsconfig.json | jq '.compilerOptions.types = null')" > tsconfig.json
+        echo "$(cat tsconfig.json | jq '.compilerOptions.types = ["node"]')" > tsconfig.json
         
+        echo "Modified 'tsconfig.json':"
         cat tsconfig.json
 
     - name: Build
