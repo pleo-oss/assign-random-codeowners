@@ -16,6 +16,8 @@ import { CodeOwnersEntry } from 'codeowners-utils'
 beforeEach(() => {
   process.env['INPUT_REVIEWERS-TO-ASSIGN'] = '2'
   process.env['GITHUB_TOKEN'] = 'bla'
+  process.env['INPUT_ASSIGN-FROM-CHANGED-FILES'] = 'false'
+  process.env['ASSIGN-INDIVIDUALS-FROM-TEAMS'] = 'false'
 })
 
 describe('Input handling', () => {

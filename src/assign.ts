@@ -99,11 +99,12 @@ export const randomTeamAssignee = (organisation: string, teamSlug: string) => as
     org: organisation,
     team_slug: teamSlug,
   })
-  info(`[${status}] Found team members:`)
-  info(stringify(teamMembers))
-
   const teamMemberIds = teamMembers.map(member => member.login)
+  info(`[${status}] Found team members:`)
+  info(stringify(teamMemberIds))
+
   const randomized = randomize(teamMemberIds)?.[0]
+  info(`Picked team member: ${randomized}`)
 
   if (!randomized) {
     error(`Failed to select random team members for team '${organisation}/${teamSlug}'.`)
@@ -125,14 +126,16 @@ export const selectReviewers = async (
   const users = new Set<string>()
 
   const assignees = () => teams.size + users.size + assignedReviewers
+  const randomGlobalCodeowner = (owners?: string[]) => (assignIndividuals ? owners?.[0] : owners?.shift())
 
   const stack = JSON.parse(JSON.stringify(codeowners)) as CodeOwnersEntry[] //Poor man's deep clone.
-  const randomGlobalCodeowners = randomize(stack.find(owner => owner.pattern === '*')?.owners)
+  const globalCodeowners = stack.find(owner => owner.pattern === '*')?.owners
 
   while (assignees() < reviewers) {
     const randomFile = randomize(changedFiles)?.[0]
     const randomFileOwner = randomize(stack.find(owner => owner.pattern === randomFile)?.owners)?.shift()
-    const selected = randomFileOwner ?? randomGlobalCodeowners?.shift()
+    const randomGlobalCodeowners = randomize(globalCodeowners)
+    const selected = randomFileOwner ?? randomGlobalCodeowner(randomGlobalCodeowners)
 
     if (!selected) break
 
@@ -140,7 +143,7 @@ export const selectReviewers = async (
     const teamSlug = selected.replace(/@.*\//, '')
     if (isTeam && assignIndividuals) {
       const selectedTeamMember = await randomTeamAssignee(teamSlug)
-      info(`Assigning '${stringify(selectedTeamMember)}' from assignee team '${teamSlug}'.`)
+      info(`Assigning '${selectedTeamMember}' from assignee team '${teamSlug}'.`)
       users.add(selectedTeamMember)
     } else if (isTeam) {
       info(`Assigning '${selected}' as an assignee team.`)

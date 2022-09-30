@@ -77,10 +77,11 @@ const randomTeamAssignee = (organisation, teamSlug) => async (octokit) => {
         org: organisation,
         team_slug: teamSlug,
     });
-    (0, core_1.info)(`[${status}] Found team members:`);
-    (0, core_1.info)(stringify(teamMembers));
     const teamMemberIds = teamMembers.map(member => member.login);
+    (0, core_1.info)(`[${status}] Found team members:`);
+    (0, core_1.info)(stringify(teamMemberIds));
     const randomized = randomize(teamMemberIds)?.[0];
+    (0, core_1.info)(`Picked team member: ${randomized}`);
     if (!randomized) {
         (0, core_1.error)(`Failed to select random team members for team '${organisation}/${teamSlug}'.`);
         process.exit(1);
@@ -93,19 +94,21 @@ const selectReviewers = async (changedFiles, codeowners, randomTeamAssignee, opt
     const teams = new Set();
     const users = new Set();
     const assignees = () => teams.size + users.size + assignedReviewers;
+    const randomGlobalCodeowner = (owners) => (assignIndividuals ? owners?.[0] : owners?.shift());
     const stack = JSON.parse(JSON.stringify(codeowners)); //Poor man's deep clone.
-    const randomGlobalCodeowners = randomize(stack.find(owner => owner.pattern === '*')?.owners);
+    const globalCodeowners = stack.find(owner => owner.pattern === '*')?.owners;
+    const randomGlobalCodeowners = randomize(globalCodeowners);
     while (assignees() < reviewers) {
         const randomFile = randomize(changedFiles)?.[0];
         const randomFileOwner = randomize(stack.find(owner => owner.pattern === randomFile)?.owners)?.shift();
-        const selected = randomFileOwner ?? randomGlobalCodeowners?.shift();
+        const selected = randomFileOwner ?? randomGlobalCodeowner(randomGlobalCodeowners);
         if (!selected)
             break;
         const isTeam = /@.*\//.test(selected);
         const teamSlug = selected.replace(/@.*\//, '');
         if (isTeam && assignIndividuals) {
             const selectedTeamMember = await randomTeamAssignee(teamSlug);
-            (0, core_1.info)(`Assigning '${stringify(selectedTeamMember)}' from assignee team '${teamSlug}'.`);
+            (0, core_1.info)(`Assigning '${selectedTeamMember}' from assignee team '${teamSlug}'.`);
             users.add(selectedTeamMember);
         }
         else if (isTeam) {
