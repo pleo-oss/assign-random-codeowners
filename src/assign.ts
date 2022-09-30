@@ -151,8 +151,13 @@ export const selectReviewers = async (
 
     const teamSlug = extractTeamSlug(selected)
     if (isTeam(selected) && assignIndividuals) {
+      if (Object.keys(teams).length === 0) break
+
       const randomTeamMember = randomize(teams?.[teamSlug])?.shift()
-      if (!randomTeamMember) break
+      if (!randomTeamMember) {
+        delete teams?.[teamSlug]
+        continue
+      }
 
       info(`Assigning '${randomTeamMember}' from assignee team '${teamSlug}'.`)
       selectedUsers.add(randomTeamMember)

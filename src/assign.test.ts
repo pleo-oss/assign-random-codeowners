@@ -444,7 +444,7 @@ describe('Reviewer selection', () => {
       assignIndividuals: false,
       reviewers: maxAssignees,
     }
-    const result = await selectReviewers(filesChanged, codeowners, undefined, options)
+    const result = await selectReviewers(filesChanged, codeowners, {}, options)
     expect(result).not.toBeNull()
     expect(result).toEqual(expected)
   })
@@ -456,7 +456,7 @@ describe('Reviewer selection', () => {
       assignIndividuals: false,
       reviewers: maxAssignees,
     }
-    const result = await selectReviewers(filesChanged, codeowners, undefined, options)
+    const result = await selectReviewers(filesChanged, codeowners, {}, options)
 
     expect(result).not.toBeNull()
     expect(result.count).toEqual(4)
@@ -475,7 +475,7 @@ describe('Reviewer selection', () => {
       assignIndividuals: false,
       reviewers: maxAssignees,
     }
-    const result = await selectReviewers(filesChanged, codeowners, undefined, options)
+    const result = await selectReviewers(filesChanged, codeowners, {}, options)
 
     expect(result).not.toBeNull()
     expect(result.count).toEqual(4)
@@ -494,7 +494,7 @@ describe('Reviewer selection', () => {
       reviewers: maxAssignees,
     }
 
-    const result = await selectReviewers(filesChanged, codeowners, undefined, options)
+    const result = await selectReviewers(filesChanged, codeowners, {}, options)
 
     expect(result).not.toBeNull()
     expect(result.count).toEqual(3)
@@ -512,7 +512,7 @@ describe('Reviewer selection', () => {
       reviewers: maxAssignees,
     }
 
-    await selectReviewers(filesChanged, codeowners, undefined, options)
+    await selectReviewers(filesChanged, codeowners, {}, options)
   })
 
   it('handles empty CODEOWNERS', async () => {
@@ -523,7 +523,7 @@ describe('Reviewer selection', () => {
       reviewers: maxAssignees,
     }
 
-    const result = await selectReviewers(filesChanged, [], undefined, options)
+    const result = await selectReviewers(filesChanged, [], {}, options)
 
     expect(result).toEqual({ count: 0, teams: [], users: [] })
   })

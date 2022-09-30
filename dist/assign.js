@@ -112,9 +112,13 @@ const selectReviewers = async (changedFiles, codeowners, ownerTeams, options) =>
             break;
         const teamSlug = extractTeamSlug(selected);
         if (isTeam(selected) && assignIndividuals) {
-            const randomTeamMember = randomize(teams?.[teamSlug])?.shift();
-            if (!randomTeamMember)
+            if (Object.keys(teams).length === 0)
                 break;
+            const randomTeamMember = randomize(teams?.[teamSlug])?.shift();
+            if (!randomTeamMember) {
+                delete teams?.[teamSlug];
+                continue;
+            }
             (0, core_1.info)(`Assigning '${randomTeamMember}' from assignee team '${teamSlug}'.`);
             selectedUsers.add(randomTeamMember);
         }
