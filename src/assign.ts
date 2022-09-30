@@ -4,7 +4,7 @@ import { existsSync, promises as fs } from 'fs'
 import { CodeOwnersEntry, parse } from 'codeowners-utils'
 import { Context } from '@actions/github/lib/context'
 import { Api } from '@octokit/plugin-rest-endpoint-methods/dist-types/types'
-import { ActionOptions, PullRequestInformation, Assignees, SelectionOptions } from './types'
+import { ActionOptions, PullRequestInformation, Assignees, SelectionOptions, Teams } from './types'
 
 export const validPaths = ['CODEOWNERS', '.github/CODEOWNERS', 'docs/CODEOWNERS']
 
@@ -92,43 +92,53 @@ export const extractChangedFiles =
   }
 
 const randomize = <T>(input?: T[]) => input?.sort(() => Math.random() - 0.5)
+const isTeam = (selected: string) => /@.*\//.test(selected)
+const extractTeamSlug = (selected: string) => selected.replace(/@.*\//, '')
 
-export const randomTeamAssignee = (organisation: string, teamSlug: string) => async (octokit: Api) => {
-  info(`Requesting team members for team '${organisation}/${teamSlug}' via the GitHub API.`)
-  const { data: teamMembers, status } = await octokit.rest.teams.listMembersInOrg({
-    org: organisation,
-    team_slug: teamSlug,
-  })
-  const teamMemberIds = teamMembers.map(member => member.login)
-  info(`[${status}] Found team members:`)
-  info(stringify(teamMemberIds))
+export const fetchTeamMembers = (organisation: string, codeowners: CodeOwnersEntry[]) => async (octokit: Api) => {
+  const allTeamOwners = Array.from(new Set(codeowners.flatMap(entry => entry.owners).filter(isTeam)))
 
-  const randomized = randomize(teamMemberIds)?.[0]
-  info(`Picked team member: ${randomized}`)
+  const allTeams = await Promise.all(
+    allTeamOwners.map(async team => {
+      info(`Requesting team members for team '${organisation}/${team}' via the GitHub API.`)
+      const { data: teamMembers, status } = await octokit.rest.teams.listMembersInOrg({
+        org: organisation,
+        team_slug: extractTeamSlug(team),
+      })
 
-  if (!randomized) {
-    error(`Failed to select random team members for team '${organisation}/${teamSlug}'.`)
-    process.exit(1)
-  }
+      if (!teamMembers) {
+        error(`Failed to fetch team members for team '${organisation}/${team}'.`)
+        process.exit(1)
+      }
 
-  return randomized
+      const teamMemberIds = teamMembers.map(member => member.login)
+      info(`[${status}] Found team members:`)
+      info(stringify(teamMemberIds))
+
+      return { [team]: teamMemberIds }
+    }),
+  )
+
+  const joined = allTeams.reduce((acc: Teams, team: Teams) => ({ ...acc, ...team }), {})
+  return joined
 }
 
 export const selectReviewers = async (
   changedFiles: string[],
   codeowners: CodeOwnersEntry[],
-  randomTeamAssignee: (teamSlug: string) => Promise<string>,
+  ownerTeams: Teams,
   options: SelectionOptions,
 ) => {
   const { assignedReviewers, reviewers, assignIndividuals } = options
 
-  const teams = new Set<string>()
-  const users = new Set<string>()
+  const selectedTeams = new Set<string>()
+  const selectedUsers = new Set<string>()
 
-  const assignees = () => teams.size + users.size + assignedReviewers
+  const assignees = () => selectedTeams.size + selectedUsers.size + assignedReviewers
   const randomGlobalCodeowner = (owners?: string[]) => (assignIndividuals ? owners?.[0] : owners?.shift())
 
   const stack = JSON.parse(JSON.stringify(codeowners)) as CodeOwnersEntry[] //Poor man's deep clone.
+  const teams = ownerTeams && (JSON.parse(JSON.stringify(ownerTeams)) as Teams)
   const globalCodeowners = stack.find(owner => owner.pattern === '*')?.owners
 
   while (assignees() < reviewers) {
@@ -139,25 +149,26 @@ export const selectReviewers = async (
 
     if (!selected) break
 
-    const isTeam = /@.*\//.test(selected)
-    const teamSlug = selected.replace(/@.*\//, '')
-    if (isTeam && assignIndividuals) {
-      const selectedTeamMember = await randomTeamAssignee(teamSlug)
-      info(`Assigning '${selectedTeamMember}' from assignee team '${teamSlug}'.`)
-      users.add(selectedTeamMember)
-    } else if (isTeam) {
+    const teamSlug = extractTeamSlug(selected)
+    if (isTeam(selected) && assignIndividuals) {
+      const randomTeamMember = randomize(teams?.[teamSlug])?.shift()
+      if (!randomTeamMember) break
+
+      info(`Assigning '${randomTeamMember}' from assignee team '${teamSlug}'.`)
+      selectedUsers.add(randomTeamMember)
+    } else if (isTeam(selected)) {
       info(`Assigning '${selected}' as an assignee team.`)
-      teams.add(teamSlug)
+      selectedTeams.add(teamSlug)
     } else {
       info(`Assigning '${selected}' as an assignee user.`)
-      users.add(selected)
+      selectedUsers.add(selected)
     }
   }
 
   return {
     count: assignees(),
-    teams: Array.from(teams),
-    users: Array.from(users),
+    teams: Array.from(selectedTeams),
+    users: Array.from(selectedUsers),
   }
 }
 
@@ -222,10 +233,10 @@ export const run = async () => {
       process.exit(0)
     }
 
-    const assigneeSelection = async (teamSlug: string) => randomTeamAssignee(pullRequest.owner, teamSlug)(octokit)
+    const teams = assignIndividuals ? await fetchTeamMembers(pullRequest.owner, codeowners)(octokit) : {}
     const selectionOptions = { assignedReviewers, reviewers, assignIndividuals }
     const changedFiles = await extractChangedFiles(assignFromChanges, pullRequest)(octokit)
-    const selected = await selectReviewers(changedFiles, codeowners, assigneeSelection, selectionOptions)
+    const selected = await selectReviewers(changedFiles, codeowners, teams, selectionOptions)
     info(`Selected reviewers for assignment: ${stringify(selected)}`)
 
     const assigned = await assignReviewers(pullRequest, selected)(octokit)
