@@ -24,3 +24,7 @@ export interface SelectionOptions {
   reviewers: number
   assignIndividuals: boolean
 }
+
+export interface Teams {
+  [teamName: string]: string[]
+}
