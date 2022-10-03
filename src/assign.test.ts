@@ -512,7 +512,11 @@ describe('Reviewer selection', () => {
       reviewers: maxAssignees,
     }
 
-    await selectReviewers(filesChanged, codeowners, {}, options)
+    const result = await selectReviewers(filesChanged, codeowners, {}, options)
+    expect(result).not.toBeNull()
+    expect(result.count).toEqual(0)
+    expect(result.teams.length).toEqual(0)
+    expect(result.users.length).toEqual(0)
   })
 
   it('handles empty CODEOWNERS', async () => {
