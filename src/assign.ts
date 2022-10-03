@@ -154,7 +154,7 @@ export const selectReviewers = async (
 
     const teamSlug = extractTeamSlug(selected)
     if (isTeam(selected) && assignIndividuals) {
-      // If the list of team members is exhausted we give up assigning team members.
+      // If the set of all teams are exhausted we give up assigning teams.
       if (Object.keys(teams).length === 0) break
 
       const randomTeamMember = randomize(teams?.[teamSlug])?.shift()
