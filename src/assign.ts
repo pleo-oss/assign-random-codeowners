@@ -4,7 +4,7 @@ import { existsSync, promises as fs } from 'fs'
 import { CodeOwnersEntry, parse } from 'codeowners-utils'
 import { Context } from '@actions/github/lib/context'
 import { Api } from '@octokit/plugin-rest-endpoint-methods/dist-types/types'
-import { ActionOptions, PullRequestInformation, Assignees, SelectionOptions, Teams } from './types'
+import { ActionOptions, PullRequestInformation, Assignees, SelectionOptions, TeamMembers } from './types'
 
 export const validPaths = ['CODEOWNERS', '.github/CODEOWNERS', 'docs/CODEOWNERS']
 
@@ -122,14 +122,14 @@ export const fetchTeamMembers = (organisation: string, codeowners: CodeOwnersEnt
     }),
   )
 
-  const joined = allTeams.reduce((acc: Teams, team: Teams) => ({ ...acc, ...team }), {})
+  const joined = allTeams.reduce((acc: TeamMembers, team: TeamMembers) => ({ ...acc, ...team }), {})
   return joined
 }
 
 export const selectReviewers = async (
   changedFiles: string[],
   codeowners: CodeOwnersEntry[],
-  ownerTeams: Teams,
+  ownerTeams: TeamMembers,
   options: SelectionOptions,
 ) => {
   const { assignedReviewers, reviewers, assignIndividuals } = options
@@ -141,7 +141,7 @@ export const selectReviewers = async (
   const randomGlobalCodeowner = (owners?: string[]) => (assignIndividuals ? owners?.[0] : owners?.shift())
 
   const stack = JSON.parse(JSON.stringify(codeowners)) as CodeOwnersEntry[] //Poor man's deep clone.
-  const teams = ownerTeams && (JSON.parse(JSON.stringify(ownerTeams)) as Teams)
+  const teams = ownerTeams && (JSON.parse(JSON.stringify(ownerTeams)) as TeamMembers)
   const globalCodeowners = stack.find(owner => owner.pattern === '*')?.owners
 
   while (assignees() < reviewers) {

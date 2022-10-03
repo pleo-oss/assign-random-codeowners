@@ -25,6 +25,6 @@ export interface SelectionOptions {
   assignIndividuals: boolean
 }
 
-export interface Teams {
+export interface TeamMembers {
   [teamName: string]: string[]
 }
