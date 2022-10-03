@@ -129,7 +129,7 @@ export const fetchTeamMembers = (organisation: string, codeowners: CodeOwnersEnt
 export const selectReviewers = async (
   changedFiles: string[],
   codeowners: CodeOwnersEntry[],
-  ownerTeams: TeamMembers,
+  teamMembers: TeamMembers,
   options: SelectionOptions,
 ) => {
   const { assignedReviewers, reviewers, assignIndividuals } = options
@@ -141,7 +141,7 @@ export const selectReviewers = async (
   const randomGlobalCodeowner = (owners?: string[]) => (assignIndividuals ? owners?.[0] : owners?.shift())
 
   const stack = JSON.parse(JSON.stringify(codeowners)) as CodeOwnersEntry[] //Poor man's deep clone.
-  const teams = ownerTeams && (JSON.parse(JSON.stringify(ownerTeams)) as TeamMembers)
+  const teams = teamMembers && (JSON.parse(JSON.stringify(teamMembers)) as TeamMembers)
   const globalCodeowners = stack.find(owner => owner.pattern === '*')?.owners
 
   while (assignees() < reviewers) {

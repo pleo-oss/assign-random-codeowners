@@ -97,14 +97,14 @@ const fetchTeamMembers = (organisation, codeowners) => async (octokit) => {
     return joined;
 };
 exports.fetchTeamMembers = fetchTeamMembers;
-const selectReviewers = async (changedFiles, codeowners, ownerTeams, options) => {
+const selectReviewers = async (changedFiles, codeowners, teamMembers, options) => {
     const { assignedReviewers, reviewers, assignIndividuals } = options;
     const selectedTeams = new Set();
     const selectedUsers = new Set();
     const assignees = () => selectedTeams.size + selectedUsers.size + assignedReviewers;
     const randomGlobalCodeowner = (owners) => (assignIndividuals ? owners?.[0] : owners?.shift());
     const stack = JSON.parse(JSON.stringify(codeowners)); //Poor man's deep clone.
-    const teams = ownerTeams && JSON.parse(JSON.stringify(ownerTeams));
+    const teams = teamMembers && JSON.parse(JSON.stringify(teamMembers));
     const globalCodeowners = stack.find(owner => owner.pattern === '*')?.owners;
     while (assignees() < reviewers) {
         const randomFile = randomize(changedFiles)?.[0];
