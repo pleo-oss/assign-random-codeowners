@@ -96,11 +96,14 @@ const isTeam = (selected: string) => /@.*\//.test(selected)
 const extractTeamSlug = (selected: string) => selected.replace(/@.*\//, '')
 
 export const fetchTeamMembers = (organisation: string, codeowners: CodeOwnersEntry[]) => async (octokit: Api) => {
+  // Ensure that we don't have duplicate IDs in order to fetch as little from GitHub as possible.
   const allTeamOwners = Array.from(new Set(codeowners.flatMap(entry => entry.owners).filter(isTeam)))
 
   const allTeams = await Promise.all(
     allTeamOwners.map(async team => {
       info(`Requesting team members for team '${organisation}/${team}' via the GitHub API.`)
+      // Fetch members from each team since there's currently no way
+      // to fetch all teams with members from a GitHub organisation.
       const { data: teamMembers, status } = await octokit.rest.teams.listMembersInOrg({
         org: organisation,
         team_slug: extractTeamSlug(team),
@@ -151,10 +154,12 @@ export const selectReviewers = async (
 
     const teamSlug = extractTeamSlug(selected)
     if (isTeam(selected) && assignIndividuals) {
+      // If the list of team members is exhausted we give up assigning team members.
       if (Object.keys(teams).length === 0) break
 
       const randomTeamMember = randomize(teams?.[teamSlug])?.shift()
       if (!randomTeamMember) {
+        // Remove the team from the stack of all team members have been extracted.
         delete teams?.[teamSlug]
         continue
       }
