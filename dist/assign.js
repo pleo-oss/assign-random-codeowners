@@ -106,21 +106,33 @@ const selectReviewers = async (changedFiles, codeowners, teamMembers, options) =
     const stack = JSON.parse(JSON.stringify(codeowners)); //Poor man's deep clone.
     const teams = teamMembers && JSON.parse(JSON.stringify(teamMembers));
     const globalCodeowners = stack.find(owner => owner.pattern === '*')?.owners;
+    (0, core_1.info)(`Found global CODEOWNERS: ${stringify(globalCodeowners)}.`);
     while (assignees() < reviewers) {
         const randomFile = randomize(changedFiles)?.[0];
+        (0, core_1.debug)(`Selected random file: ${randomFile}`);
         const randomFileOwner = randomize(stack.find(owner => owner.pattern === randomFile)?.owners)?.shift();
+        (0, core_1.debug)(`Selected random file owner: ${randomFileOwner}`);
         const randomGlobalCodeowners = randomize(globalCodeowners);
         const selected = randomFileOwner ?? randomGlobalCodeowner(randomGlobalCodeowners);
-        if (!selected)
+        (0, core_1.debug)(`Selected: ${selected}`);
+        if (!selected) {
+            (0, core_1.debug)(`Did not find an assignee.`);
             break;
+        }
         const teamSlug = extractTeamSlug(selected);
+        (0, core_1.debug)(`Extracted team slug: ${teamSlug}.`);
         if (isTeam(selected) && assignIndividuals) {
+            (0, core_1.debug)(`Assigning individuals from team: ${teamSlug}.`);
             // If the set of all teams are exhausted we give up assigning teams.
-            if (Object.keys(teams).length === 0)
+            if (Object.keys(teams).length === 0) {
+                (0, core_1.debug)('Teams to assign is empty. Exiting.');
                 break;
+            }
             const randomTeamMember = randomize(teams?.[teamSlug])?.shift();
+            (0, core_1.debug)(`Found random team member: ${randomTeamMember}.`);
             if (!randomTeamMember) {
                 // Remove the team from the stack of all team members have been extracted.
+                (0, core_1.debug)(`Did not find random team member. Removing team ${teamSlug} from possible teams to assign.`);
                 delete teams?.[teamSlug];
                 continue;
             }
@@ -197,6 +209,7 @@ const run = async () => {
         const teams = assignIndividuals ? await (0, exports.fetchTeamMembers)(pullRequest.owner, codeowners)(octokit) : {};
         const selectionOptions = { assignedReviewers, reviewers, assignIndividuals };
         const changedFiles = await (0, exports.extractChangedFiles)(assignFromChanges, pullRequest)(octokit);
+        (0, core_1.info)('Selecting reviewers for assignment.');
         const selected = await (0, exports.selectReviewers)(changedFiles, codeowners, teams, selectionOptions);
         (0, core_1.info)(`Selected reviewers for assignment: ${stringify(selected)}`);
         const assigned = await (0, exports.assignReviewers)(pullRequest, selected)(octokit);

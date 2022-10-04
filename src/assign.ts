@@ -1,4 +1,4 @@
-import { getInput, error, info, setOutput, setFailed } from '@actions/core'
+import { getInput, error, info, debug, setOutput, setFailed } from '@actions/core'
 import { getOctokit, context } from '@actions/github'
 import { existsSync, promises as fs } from 'fs'
 import { CodeOwnersEntry, parse } from 'codeowners-utils'
@@ -143,23 +143,37 @@ export const selectReviewers = async (
   const stack = JSON.parse(JSON.stringify(codeowners)) as CodeOwnersEntry[] //Poor man's deep clone.
   const teams = teamMembers && (JSON.parse(JSON.stringify(teamMembers)) as TeamMembers)
   const globalCodeowners = stack.find(owner => owner.pattern === '*')?.owners
+  info(`Found global CODEOWNERS: ${stringify(globalCodeowners)}.`)
 
   while (assignees() < reviewers) {
     const randomFile = randomize(changedFiles)?.[0]
+    debug(`Selected random file: ${randomFile}`)
     const randomFileOwner = randomize(stack.find(owner => owner.pattern === randomFile)?.owners)?.shift()
+    debug(`Selected random file owner: ${randomFileOwner}`)
     const randomGlobalCodeowners = randomize(globalCodeowners)
     const selected = randomFileOwner ?? randomGlobalCodeowner(randomGlobalCodeowners)
+    debug(`Selected: ${selected}`)
 
-    if (!selected) break
+    if (!selected) {
+      debug(`Did not find an assignee.`)
+      break
+    }
 
     const teamSlug = extractTeamSlug(selected)
+    debug(`Extracted team slug: ${teamSlug}.`)
     if (isTeam(selected) && assignIndividuals) {
+      debug(`Assigning individuals from team: ${teamSlug}.`)
       // If the set of all teams are exhausted we give up assigning teams.
-      if (Object.keys(teams).length === 0) break
+      if (Object.keys(teams).length === 0) {
+        debug('Teams to assign is empty. Exiting.')
+        break
+      }
 
       const randomTeamMember = randomize(teams?.[teamSlug])?.shift()
+      debug(`Found random team member: ${randomTeamMember}.`)
       if (!randomTeamMember) {
         // Remove the team from the stack of all team members have been extracted.
+        debug(`Did not find random team member. Removing team ${teamSlug} from possible teams to assign.`)
         delete teams?.[teamSlug]
         continue
       }
@@ -246,6 +260,7 @@ export const run = async () => {
     const teams = assignIndividuals ? await fetchTeamMembers(pullRequest.owner, codeowners)(octokit) : {}
     const selectionOptions = { assignedReviewers, reviewers, assignIndividuals }
     const changedFiles = await extractChangedFiles(assignFromChanges, pullRequest)(octokit)
+    info('Selecting reviewers for assignment.')
     const selected = await selectReviewers(changedFiles, codeowners, teams, selectionOptions)
     info(`Selected reviewers for assignment: ${stringify(selected)}`)
 
