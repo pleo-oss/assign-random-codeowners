@@ -163,6 +163,7 @@ export const selectReviewers = async (
     debug(`Extracted team slug: ${teamSlug}.`)
     if (isTeam(selected) && assignIndividuals) {
       debug(`Assigning individuals from team: ${teamSlug}.`)
+      debug(`Possible teams are: ${stringify(teams)}.`)
       // If the set of all teams are exhausted we give up assigning teams.
       if (Object.keys(teams).length === 0) {
         debug('Teams to assign is empty. Exiting.')

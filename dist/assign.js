@@ -123,6 +123,7 @@ const selectReviewers = async (changedFiles, codeowners, teamMembers, options) =
         (0, core_1.debug)(`Extracted team slug: ${teamSlug}.`);
         if (isTeam(selected) && assignIndividuals) {
             (0, core_1.debug)(`Assigning individuals from team: ${teamSlug}.`);
+            (0, core_1.debug)(`Possible teams are: ${stringify(teams)}.`);
             // If the set of all teams are exhausted we give up assigning teams.
             if (Object.keys(teams).length === 0) {
                 (0, core_1.debug)('Teams to assign is empty. Exiting.');
