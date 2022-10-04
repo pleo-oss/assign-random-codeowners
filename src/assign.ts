@@ -200,9 +200,14 @@ export const selectReviewers = async (
 
 export const assignReviewers = (pullRequest: PullRequestInformation, reviewers: Assignees) => async (octokit: Api) => {
   const { repo, owner, number } = pullRequest
-  const { teams, users } = reviewers
+  const { teams, users, count } = reviewers
 
-  info('Requesting reviewers via the GitHub API.')
+  if (count === 0) {
+    info('No reviewers were selected. Skipping requesting reviewers.')
+    return
+  }
+
+  info(`Requesting ${count} reviewers via the GitHub API.`)
   const { data: assigned, status } = await octokit.rest.pulls.requestReviewers({
     owner,
     repo,
@@ -215,7 +220,7 @@ export const assignReviewers = (pullRequest: PullRequestInformation, reviewers: 
   const requestedTeams = assigned.requested_teams?.map(team => team.name)
 
   if (requestedReviewers && requestedTeams) {
-    const requested: Assignees = {
+    const requested = {
       count: requestedReviewers.length + requestedTeams.length,
       teams: requestedTeams,
       users: requestedReviewers,

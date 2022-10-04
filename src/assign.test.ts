@@ -346,7 +346,7 @@ describe("Calling GitHub's API", () => {
     const expected = { count: userLogins.length + teamNames.length, teams: teamNames, users: userLogins }
 
     const assignees: Assignees = {
-      count: 0,
+      count: userLogins.length + teamNames.length,
       teams: teamNames,
       users: userLogins,
     }
