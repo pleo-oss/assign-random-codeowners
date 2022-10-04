@@ -214,7 +214,7 @@ const run = async () => {
         const changedFiles = await (0, exports.extractChangedFiles)(assignFromChanges, pullRequest)(octokit);
         (0, core_1.info)('Selecting reviewers for assignment.');
         const selected = await (0, exports.selectReviewers)(changedFiles, codeowners, teams, selectionOptions);
-        (0, core_1.info)(`Selected reviewers for assignment: ${stringify(selected)}`);
+        (0, core_1.info)(`Selected additional reviewers for assignment: ${stringify(selected)}`);
         const assigned = await (0, exports.assignReviewers)(pullRequest, selected)(octokit);
         if (!assigned) {
             (0, core_1.error)(`Failed to assign reviewers: ${stringify(selected)}`);

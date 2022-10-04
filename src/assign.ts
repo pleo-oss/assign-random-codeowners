@@ -265,7 +265,7 @@ export const run = async () => {
     const changedFiles = await extractChangedFiles(assignFromChanges, pullRequest)(octokit)
     info('Selecting reviewers for assignment.')
     const selected = await selectReviewers(changedFiles, codeowners, teams, selectionOptions)
-    info(`Selected reviewers for assignment: ${stringify(selected)}`)
+    info(`Selected additional reviewers for assignment: ${stringify(selected)}`)
 
     const assigned = await assignReviewers(pullRequest, selected)(octokit)
     if (!assigned) {
