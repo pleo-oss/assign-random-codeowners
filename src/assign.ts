@@ -190,6 +190,7 @@ export const selectReviewers = async (
       selectedUsers.add(selected)
     }
   }
+  info(`Selected ${assignees()} of ${reviewers} assignees.`)
 
   return {
     count: assignees(),
