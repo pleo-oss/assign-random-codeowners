@@ -162,7 +162,7 @@ const assignReviewers = (pullRequest, reviewers) => async (octokit) => {
     const { teams, users, count } = reviewers;
     if (count === 0) {
         (0, core_1.info)('No reviewers were selected. Skipping requesting reviewers.');
-        return;
+        return reviewers;
     }
     (0, core_1.info)(`Requesting ${count} reviewers via the GitHub API.`);
     const { data: assigned, status } = await octokit.rest.pulls.requestReviewers({

@@ -204,7 +204,7 @@ export const assignReviewers = (pullRequest: PullRequestInformation, reviewers: 
 
   if (count === 0) {
     info('No reviewers were selected. Skipping requesting reviewers.')
-    return
+    return reviewers
   }
 
   info(`Requesting ${count} reviewers via the GitHub API.`)
