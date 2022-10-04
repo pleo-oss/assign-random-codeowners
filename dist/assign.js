@@ -219,10 +219,6 @@ const run = async () => {
         const selected = await (0, exports.selectReviewers)(changedFiles, codeowners, teams, selectionOptions);
         (0, core_1.info)(`Selected additional reviewers for assignment: ${stringify(selected)}`);
         const assigned = await (0, exports.assignReviewers)(pullRequest, selected)(octokit);
-        if (!assigned) {
-            (0, core_1.error)(`Failed to assign reviewers: ${stringify(selected)}`);
-            process.exit(1);
-        }
         (0, core_1.setOutput)('assigned-codeowners', stringify(assigned));
         (0, core_1.info)(`Assigned reviewers: ${stringify(assigned)}`);
     }

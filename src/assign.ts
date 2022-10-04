@@ -272,11 +272,6 @@ export const run = async () => {
     info(`Selected additional reviewers for assignment: ${stringify(selected)}`)
 
     const assigned = await assignReviewers(pullRequest, selected)(octokit)
-    if (!assigned) {
-      error(`Failed to assign reviewers: ${stringify(selected)}`)
-      process.exit(1)
-    }
-
     setOutput('assigned-codeowners', stringify(assigned))
     info(`Assigned reviewers: ${stringify(assigned)}`)
   } catch (error: unknown) {
