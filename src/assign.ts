@@ -170,11 +170,11 @@ export const selectReviewers = async (
         break
       }
 
-      const randomTeamMember = randomize(teams?.[teamSlug])?.shift()
+      const randomTeamMember = randomize(teams?.[selected])?.shift()
       if (!randomTeamMember) {
         // Remove the team from the stack of all team members have been extracted.
         debug(`Did not find random team member. Removing team ${teamSlug} from possible teams to assign.`)
-        delete teams?.[teamSlug]
+        delete teams?.[selected]
         randomGlobalCodeowners?.shift()
         continue
       }

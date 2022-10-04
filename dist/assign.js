@@ -129,11 +129,11 @@ const selectReviewers = async (changedFiles, codeowners, teamMembers, options) =
                 (0, core_1.debug)('Teams to assign is empty. Exiting.');
                 break;
             }
-            const randomTeamMember = randomize(teams?.[teamSlug])?.shift();
+            const randomTeamMember = randomize(teams?.[selected])?.shift();
             if (!randomTeamMember) {
                 // Remove the team from the stack of all team members have been extracted.
                 (0, core_1.debug)(`Did not find random team member. Removing team ${teamSlug} from possible teams to assign.`);
-                delete teams?.[teamSlug];
+                delete teams?.[selected];
                 randomGlobalCodeowners?.shift();
                 continue;
             }
