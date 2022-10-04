@@ -184,7 +184,7 @@ const assignReviewers = (pullRequest, reviewers) => async (octokit) => {
         (0, core_1.info)(stringify(requested));
         return requested;
     }
-    return undefined;
+    return reviewers;
 };
 exports.assignReviewers = assignReviewers;
 const run = async () => {

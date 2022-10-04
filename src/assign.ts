@@ -231,7 +231,7 @@ export const assignReviewers = (pullRequest: PullRequestInformation, reviewers: 
     return requested
   }
 
-  return undefined
+  return reviewers
 }
 
 export const run = async () => {
