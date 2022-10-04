@@ -129,13 +129,14 @@ const selectReviewers = async (changedFiles, codeowners, teamMembers, options) =
                 break;
             }
             const randomTeamMember = randomize(teams?.[teamSlug])?.shift();
-            (0, core_1.debug)(`Found random team member: ${randomTeamMember}.`);
             if (!randomTeamMember) {
                 // Remove the team from the stack of all team members have been extracted.
                 (0, core_1.debug)(`Did not find random team member. Removing team ${teamSlug} from possible teams to assign.`);
                 delete teams?.[teamSlug];
+                randomGlobalCodeowners?.shift();
                 continue;
             }
+            (0, core_1.debug)(`Found random team member: ${randomTeamMember}.`);
             (0, core_1.info)(`Assigning '${randomTeamMember}' from assignee team '${teamSlug}'.`);
             selectedUsers.add(randomTeamMember);
         }
