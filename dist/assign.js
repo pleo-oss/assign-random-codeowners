@@ -150,9 +150,8 @@ const selectReviewers = async (changedFiles, codeowners, teamMembers, options) =
             selectedUsers.add(selected);
         }
     }
-    (0, core_1.info)(`Selected ${assignees()} of ${reviewers} assignees.`);
     return {
-        count: assignees(),
+        count: selectedTeams.size + selectedUsers.size,
         teams: Array.from(selectedTeams),
         users: Array.from(selectedUsers),
     };

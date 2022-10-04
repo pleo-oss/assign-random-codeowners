@@ -435,7 +435,7 @@ describe('Reviewer selection', () => {
   it('does not select more than specified reviewers', async () => {
     const assigned = 4
     const expected: Assignees = {
-      count: assigned,
+      count: 0,
       teams: [],
       users: [],
     }
