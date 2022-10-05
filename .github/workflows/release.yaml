@@ -52,17 +52,18 @@ jobs:
         echo "Restored 'tsconfig.json':"
         cat tsconfig.json
 
+
+    - name: Setup SSH release token
+      uses: webfactory/ssh-agent@v0.5.4
+      with:
+        ssh-private-key: ${{ secrets.DEPLOY_PRIVATE_KEY }}
+
     - name: Add production dependencies
       uses: EndBug/add-and-commit@v9
       with: 
         add: 'node_modules --force'
       env: 
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: Setup SSH release token
-      uses: webfactory/ssh-agent@v0.5.4
-      with:
-        ssh-private-key: ${{ secrets.DEPLOY_PRIVATE_KEY }}
 
     - name: Release
       run: |
