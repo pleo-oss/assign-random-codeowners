@@ -1,0 +1,25 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:base"
+  ],
+  "automergeSchedule": "after 8am and before 5pm every weekday",
+  "automergeStrategy": "squash",
+  "automergeType": "branch",
+  "branchPrefix": "dependencies/",
+  "ignorePrAuthor": true,
+  "labels": [
+    "patch"
+  ],
+  "major": {
+    "automerge": true
+  },
+  "minor": {
+    "automerge": true
+  },
+  "patch": {
+    "automerge": true
+  },
+  "platformAutomerge": true,
+  "schedule": "after 8am and before 5pm every weekday"
+}
