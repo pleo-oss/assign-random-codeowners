@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.run = exports.assignReviewers = exports.selectReviewers = exports.randomTeamAssignee = exports.extractChangedFiles = exports.extractAssigneeCount = exports.extractPullRequestPayload = exports.setup = exports.validPaths = void 0;
+exports.run = exports.assignReviewers = exports.selectReviewers = exports.fetchTeamMembers = exports.extractChangedFiles = exports.extractAssigneeCount = exports.extractPullRequestPayload = exports.setup = exports.validPaths = void 0;
 const core_1 = require("@actions/core");
 const github_1 = require("@actions/github");
 const fs_1 = require("fs");
@@ -71,63 +71,100 @@ const extractChangedFiles = (assignFromChanges, pullRequest) => async (octokit) 
 };
 exports.extractChangedFiles = extractChangedFiles;
 const randomize = (input) => input?.sort(() => Math.random() - 0.5);
-const randomTeamAssignee = (organisation, teamSlug) => async (octokit) => {
-    (0, core_1.info)(`Requesting team members for team '${organisation}/${teamSlug}' via the GitHub API.`);
-    const { data: teamMembers, status } = await octokit.rest.teams.listMembersInOrg({
-        org: organisation,
-        team_slug: teamSlug,
-    });
-    (0, core_1.info)(`[${status}] Found team members:`);
-    (0, core_1.info)(stringify(teamMembers));
-    const teamMemberIds = teamMembers.map(member => member.login);
-    const randomized = randomize(teamMemberIds)?.[0];
-    if (!randomized) {
-        (0, core_1.error)(`Failed to select random team members for team '${organisation}/${teamSlug}'.`);
-        process.exit(1);
-    }
-    return randomized;
+const isTeam = (selected) => /@.*\//.test(selected);
+const extractTeamSlug = (selected) => selected.replace(/@.*\//, '');
+const fetchTeamMembers = (organisation, codeowners) => async (octokit) => {
+    // Ensure that we don't have duplicate IDs in order to fetch as little from GitHub as possible.
+    const allTeamOwners = Array.from(new Set(codeowners.flatMap(entry => entry.owners).filter(isTeam)));
+    const allTeams = await Promise.all(allTeamOwners.map(async (team) => {
+        (0, core_1.info)(`Requesting team members for team '${organisation}/${team}' via the GitHub API.`);
+        // Fetch members from each team since there's currently no way
+        // to fetch all teams with members from a GitHub organisation.
+        const { data: teamMembers, status } = await octokit.rest.teams.listMembersInOrg({
+            org: organisation,
+            team_slug: extractTeamSlug(team),
+        });
+        if (!teamMembers) {
+            (0, core_1.error)(`Failed to fetch team members for team '${organisation}/${team}'.`);
+            process.exit(1);
+        }
+        const teamMemberIds = teamMembers.map(member => member.login);
+        (0, core_1.info)(`[${status}] Found team members:`);
+        (0, core_1.info)(stringify(teamMemberIds));
+        return { [team]: teamMemberIds };
+    }));
+    const joined = allTeams.reduce((acc, team) => ({ ...acc, ...team }), {});
+    return joined;
 };
-exports.randomTeamAssignee = randomTeamAssignee;
-const selectReviewers = async (changedFiles, codeowners, randomTeamAssignee, options) => {
+exports.fetchTeamMembers = fetchTeamMembers;
+const selectReviewers = async (changedFiles, codeowners, teamMembers, options) => {
     const { assignedReviewers, reviewers, assignIndividuals } = options;
-    const teams = new Set();
-    const users = new Set();
-    const assignees = () => teams.size + users.size + assignedReviewers;
+    const selectedTeams = new Set();
+    const selectedUsers = new Set();
+    const assignees = () => selectedTeams.size + selectedUsers.size + assignedReviewers;
+    const randomGlobalCodeowner = (owners) => (assignIndividuals ? owners?.[0] : owners?.shift());
     const stack = JSON.parse(JSON.stringify(codeowners)); //Poor man's deep clone.
-    const randomGlobalCodeowners = randomize(stack.find(owner => owner.pattern === '*')?.owners);
+    const teams = teamMembers && JSON.parse(JSON.stringify(teamMembers));
+    const globalCodeowners = stack.find(owner => owner.pattern === '*')?.owners;
+    (0, core_1.info)(`Found global CODEOWNERS: ${stringify(globalCodeowners)}.`);
     while (assignees() < reviewers) {
         const randomFile = randomize(changedFiles)?.[0];
+        (0, core_1.debug)(`Selected random file: ${randomFile}`);
         const randomFileOwner = randomize(stack.find(owner => owner.pattern === randomFile)?.owners)?.shift();
-        const selected = randomFileOwner ?? randomGlobalCodeowners?.shift();
-        if (!selected)
+        (0, core_1.debug)(`Selected random file owner: ${randomFileOwner}`);
+        const randomGlobalCodeowners = randomize(globalCodeowners);
+        const selected = randomFileOwner ?? randomGlobalCodeowner(randomGlobalCodeowners);
+        (0, core_1.debug)(`Selected: ${selected}`);
+        if (!selected) {
+            (0, core_1.debug)(`Did not find an assignee.`);
             break;
-        const isTeam = /@.*\//.test(selected);
-        const teamSlug = selected.replace(/@.*\//, '');
-        if (isTeam && assignIndividuals) {
-            const selectedTeamMember = await randomTeamAssignee(teamSlug);
-            (0, core_1.info)(`Assigning '${stringify(selectedTeamMember)}' from assignee team '${teamSlug}'.`);
-            users.add(selectedTeamMember);
         }
-        else if (isTeam) {
+        const teamSlug = extractTeamSlug(selected);
+        (0, core_1.debug)(`Extracted team slug: ${teamSlug}.`);
+        if (isTeam(selected) && assignIndividuals) {
+            (0, core_1.debug)(`Assigning individuals from team: ${teamSlug}.`);
+            (0, core_1.debug)(`Possible teams are: ${stringify(teams)}.`);
+            // If the set of all teams are exhausted we give up assigning teams.
+            if (Object.keys(teams).length === 0) {
+                (0, core_1.debug)('Teams to assign is empty. Exiting.');
+                break;
+            }
+            const randomTeamMember = randomize(teams?.[selected])?.shift();
+            if (!randomTeamMember) {
+                // Remove the team from the stack of all team members have been extracted.
+                (0, core_1.debug)(`Did not find random team member. Removing team ${teamSlug} from possible teams to assign.`);
+                delete teams?.[selected];
+                randomGlobalCodeowners?.shift();
+                continue;
+            }
+            (0, core_1.debug)(`Found random team member: ${randomTeamMember}.`);
+            (0, core_1.info)(`Assigning '${randomTeamMember}' from assignee team '${teamSlug}'.`);
+            selectedUsers.add(randomTeamMember);
+        }
+        else if (isTeam(selected)) {
             (0, core_1.info)(`Assigning '${selected}' as an assignee team.`);
-            teams.add(teamSlug);
+            selectedTeams.add(teamSlug);
         }
         else {
             (0, core_1.info)(`Assigning '${selected}' as an assignee user.`);
-            users.add(selected);
+            selectedUsers.add(selected);
         }
     }
     return {
-        count: assignees(),
-        teams: Array.from(teams),
-        users: Array.from(users),
+        count: selectedTeams.size + selectedUsers.size,
+        teams: Array.from(selectedTeams),
+        users: Array.from(selectedUsers),
     };
 };
 exports.selectReviewers = selectReviewers;
 const assignReviewers = (pullRequest, reviewers) => async (octokit) => {
     const { repo, owner, number } = pullRequest;
-    const { teams, users } = reviewers;
-    (0, core_1.info)('Requesting reviewers via the GitHub API.');
+    const { teams, users, count } = reviewers;
+    if (count === 0) {
+        (0, core_1.info)('No reviewers were selected. Skipping requesting reviewers.');
+        return reviewers;
+    }
+    (0, core_1.info)(`Requesting ${count} reviewers via the GitHub API.`);
     const { data: assigned, status } = await octokit.rest.pulls.requestReviewers({
         owner,
         repo,
@@ -147,7 +184,7 @@ const assignReviewers = (pullRequest, reviewers) => async (octokit) => {
         (0, core_1.info)(stringify(requested));
         return requested;
     }
-    return undefined;
+    return reviewers;
 };
 exports.assignReviewers = assignReviewers;
 const run = async () => {
@@ -175,16 +212,13 @@ const run = async () => {
             (0, core_1.info)(`Saw ${assignedReviewers} assigned reviewers - skipping CODEOWNERS assignment.`);
             process.exit(0);
         }
-        const assigneeSelection = async (teamSlug) => (0, exports.randomTeamAssignee)(pullRequest.owner, teamSlug)(octokit);
+        const teams = assignIndividuals ? await (0, exports.fetchTeamMembers)(pullRequest.owner, codeowners)(octokit) : {};
         const selectionOptions = { assignedReviewers, reviewers, assignIndividuals };
         const changedFiles = await (0, exports.extractChangedFiles)(assignFromChanges, pullRequest)(octokit);
-        const selected = await (0, exports.selectReviewers)(changedFiles, codeowners, assigneeSelection, selectionOptions);
-        (0, core_1.info)(`Selected reviewers for assignment: ${stringify(selected)}`);
+        (0, core_1.info)('Selecting reviewers for assignment.');
+        const selected = await (0, exports.selectReviewers)(changedFiles, codeowners, teams, selectionOptions);
+        (0, core_1.info)(`Selected additional reviewers for assignment: ${stringify(selected)}`);
         const assigned = await (0, exports.assignReviewers)(pullRequest, selected)(octokit);
-        if (!assigned) {
-            (0, core_1.error)(`Failed to assign reviewers: ${stringify(selected)}`);
-            process.exit(1);
-        }
         (0, core_1.setOutput)('assigned-codeowners', stringify(assigned));
         (0, core_1.info)(`Assigned reviewers: ${stringify(assigned)}`);
     }

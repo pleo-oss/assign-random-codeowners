@@ -33,8 +33,14 @@ jobs:
         id: get-number-of-reviewers
         run: |
           REVIEWERS=$(echo '${{ toJson(github.event.pull_request.requested_reviewers) }}' | jq '. | length')
-          echo $REVIEWERS
+          TEAMS=$(echo '${{ toJson(github.event.pull_request.requested_teams) }}' | jq '. | length')
+          TOTAL=$(($REVIEWERS + $TEAMS))
+          echo "Individual reviewers: $REVIEWERS"
+          echo "Team reviewers: $REVIEWERS"
+          echo "Total: $REVIEWERS"
           echo "::set-output name=reviewers::$REVIEWERS"
+          echo "::set-output name=teams::$TEAMS"
+          echo "::set-output name=total::$TOTAL"
 
       - name: Checkout
         uses: actions/checkout@v3
@@ -57,7 +63,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
 
       - name: Validate
-        if: steps.get-number-of-reviewers.outputs.reviewers < 1
+        if: steps.get-number-of-reviewers.outputs.total < 1
         uses: actions/github-script@v6
         with: 
           script: |

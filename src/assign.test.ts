@@ -7,7 +7,7 @@ import {
   extractChangedFiles,
   assignReviewers,
   selectReviewers,
-  randomTeamAssignee,
+  fetchTeamMembers,
 } from './assign'
 import { Assignees, SelectionOptions } from './types'
 import * as core from '@actions/core'
@@ -16,6 +16,8 @@ import { CodeOwnersEntry } from 'codeowners-utils'
 beforeEach(() => {
   process.env['INPUT_REVIEWERS-TO-ASSIGN'] = '2'
   process.env['GITHUB_TOKEN'] = 'bla'
+  process.env['INPUT_ASSIGN-FROM-CHANGED-FILES'] = 'false'
+  process.env['ASSIGN-INDIVIDUALS-FROM-TEAMS'] = 'false'
 })
 
 describe('Input handling', () => {
@@ -344,7 +346,7 @@ describe("Calling GitHub's API", () => {
     const expected = { count: userLogins.length + teamNames.length, teams: teamNames, users: userLogins }
 
     const assignees: Assignees = {
-      count: 0,
+      count: userLogins.length + teamNames.length,
       teams: teamNames,
       users: userLogins,
     }
@@ -375,30 +377,34 @@ describe("Calling GitHub's API", () => {
   })
 
   it('can extract team members from team slug', async () => {
-    const teamMembers = ['teamMember1', 'teamMember2']
+    const teams = {
+      team1: [{ login: 'team1Member1' }, { login: 'team1Member2' }],
+      team2: [{ login: 'team2Member1' }, { login: 'team2Member2' }],
+    }
+
     const mockedOctokit = {
       rest: {
         teams: {
-          listMembersInOrg: () => ({
-            data: [{ login: teamMembers[0] }, { login: teamMembers[1] }],
-          }),
+          listMembersInOrg: (options: { team_slug: string }) => ({ data: teams[options.team_slug] }),
         },
       },
     }
 
-    const result = await randomTeamAssignee('', '')(mockedOctokit as never)
-    expect(teamMembers.some(member => member === result)).toBeTruthy()
+    const result = await fetchTeamMembers('', [{ owners: ['@org/team1', '@org/team2'], pattern: '*' }])(
+      mockedOctokit as never,
+    )
+
+    const expected = {
+      '@org/team1': ['team1Member1', 'team1Member2'],
+      '@org/team2': ['team2Member1', 'team2Member2'],
+    }
+    expect(result).not.toBeNull()
+    expect(result).toEqual(expected)
+    expect(result['@org/team1']).toEqual(expected['@org/team1'])
+    expect(result['@org/team2']).toEqual(expected['@org/team2'])
   })
 
-  it('handles missing data in pull request payloads', async () => {
-    const exitMock = jest.spyOn(process, 'exit').mockImplementation()
-    const infoMessages: string[] = []
-
-    jest.spyOn(process.stdout, 'write').mockImplementation(s => {
-      infoMessages.push(s as string)
-      return true
-    })
-
+  it('handles missing data in team member payloads', async () => {
     const mockedOctokit = {
       rest: {
         teams: {
@@ -409,11 +415,8 @@ describe("Calling GitHub's API", () => {
       },
     }
 
-    await randomTeamAssignee('', '')(mockedOctokit as never)
-    expect(exitMock).toHaveBeenCalled()
-    expect(infoMessages.some(e => /::error::.*Failed to select/.test(e))).toBeTruthy()
-
-    exitMock.mockRestore()
+    const result = await fetchTeamMembers('', [])(mockedOctokit as never)
+    expect(result).toEqual({})
   })
 })
 
@@ -422,7 +425,6 @@ describe('Reviewer selection', () => {
 
   const filesChanged = ['filename1', 'filename2']
   const orgTeams = ['@org/team1', '@org/team2', '@org/team3']
-  const teamMembers = 'teamlogin1'
   const individuals = ['login1', 'login2']
   const reviewers = [...orgTeams, ...individuals]
 
@@ -430,12 +432,10 @@ describe('Reviewer selection', () => {
 
   const codeowners: CodeOwnersEntry[] = [{ owners: ['globalOwner1', 'globalOwner2'], pattern: '*' }, ...merged]
 
-  const randomTeamAssignee = async () => teamMembers
-
   it('does not select more than specified reviewers', async () => {
     const assigned = 4
     const expected: Assignees = {
-      count: assigned,
+      count: 0,
       teams: [],
       users: [],
     }
@@ -444,7 +444,7 @@ describe('Reviewer selection', () => {
       assignIndividuals: false,
       reviewers: maxAssignees,
     }
-    const result = await selectReviewers(filesChanged, codeowners, randomTeamAssignee, options)
+    const result = await selectReviewers(filesChanged, codeowners, {}, options)
     expect(result).not.toBeNull()
     expect(result).toEqual(expected)
   })
@@ -456,7 +456,7 @@ describe('Reviewer selection', () => {
       assignIndividuals: false,
       reviewers: maxAssignees,
     }
-    const result = await selectReviewers(filesChanged, codeowners, randomTeamAssignee, options)
+    const result = await selectReviewers(filesChanged, codeowners, {}, options)
 
     expect(result).not.toBeNull()
     expect(result.count).toEqual(4)
@@ -475,7 +475,7 @@ describe('Reviewer selection', () => {
       assignIndividuals: false,
       reviewers: maxAssignees,
     }
-    const result = await selectReviewers(filesChanged, codeowners, randomTeamAssignee, options)
+    const result = await selectReviewers(filesChanged, codeowners, {}, options)
 
     expect(result).not.toBeNull()
     expect(result.count).toEqual(4)
@@ -494,11 +494,29 @@ describe('Reviewer selection', () => {
       reviewers: maxAssignees,
     }
 
-    const result = await selectReviewers(filesChanged, codeowners, randomTeamAssignee, options)
+    const result = await selectReviewers(filesChanged, codeowners, {}, options)
 
     expect(result).not.toBeNull()
     expect(result.count).toEqual(3)
     expect(result.users.every(name => owners.includes(name))).toBeTruthy()
+  })
+
+  it('does not loop infinitely when selecting from global one-person CODEOWNER teams', async () => {
+    const owners = ['@org/team']
+    const filesChanged = []
+    const codeowners: CodeOwnersEntry[] = [{ pattern: '*', owners: owners }]
+    const assigned = 0
+    const options: SelectionOptions = {
+      assignedReviewers: assigned,
+      assignIndividuals: true,
+      reviewers: maxAssignees,
+    }
+
+    const result = await selectReviewers(filesChanged, codeowners, {}, options)
+    expect(result).not.toBeNull()
+    expect(result.count).toEqual(0)
+    expect(result.teams.length).toEqual(0)
+    expect(result.users.length).toEqual(0)
   })
 
   it('handles empty CODEOWNERS', async () => {
@@ -509,7 +527,7 @@ describe('Reviewer selection', () => {
       reviewers: maxAssignees,
     }
 
-    const result = await selectReviewers(filesChanged, [], randomTeamAssignee, options)
+    const result = await selectReviewers(filesChanged, [], {}, options)
 
     expect(result).toEqual({ count: 0, teams: [], users: [] })
   })
