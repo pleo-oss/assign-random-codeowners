@@ -1,3 +1,20 @@
+# v0.2.1 (Wed Oct 05 2022)
+
+#### 🐞 Fixes
+
+- Assign team individuals from teams until no team members remain [#10](https://github.com/pleo-oss/assign-random-codeowners/pull/10) ([@andersfischernielsen](https://github.com/andersfischernielsen))
+
+#### 🏠 Internal
+
+- Configure Renovate [#11](https://github.com/pleo-oss/assign-random-codeowners/pull/11) ([@renovate[bot]](https://github.com/renovate[bot]))
+
+#### Authors: 2
+
+- [@renovate[bot]](https://github.com/renovate[bot])
+- Anders Fischer-Nielsen ([@andersfischernielsen](https://github.com/andersfischernielsen))
+
+---
+
 # v0.2.0 (Thu Sep 29 2022)
 
 #### 🎁 Features
