@@ -1,0 +1,14 @@
+---
+version: 1
+service:
+    name: Assign Random Codeowner Action
+    lifecycle: generally_available
+    owner: devexp
+    language: TypeScript
+    description: |-
+        A GitHub Action for randomly assigning CODEOWNERS to changes submitted in PRs.
+    aliases:
+        - assign_random_codeowners
+    tags:
+        - key: type
+          value: library
