@@ -1,3 +1,22 @@
+# v0.2.4 (Fri Oct 14 2022)
+
+#### 🐞 Fixes
+
+- Update typescript-eslint monorepo to v5.40.0 [#22](https://github.com/pleo-oss/assign-random-codeowners/pull/22) ([@renovate[bot]](https://github.com/renovate[bot]))
+
+#### ⚠️ Pushed to `main`
+
+- Commit from GitHub Actions (Release) (andersfischernielsen@users.noreply.github.com)
+- Update renovate.json ([@andersfischernielsen](https://github.com/andersfischernielsen))
+
+#### Authors: 3
+
+- [@renovate[bot]](https://github.com/renovate[bot])
+- Anders Fischer-Nielsen ([@andersfischernielsen](https://github.com/andersfischernielsen))
+- andersfischernielsen (andersfischernielsen@users.noreply.github.com)
+
+---
+
 # v0.2.3 (Fri Oct 14 2022)
 
 #### 🐞 Fixes
