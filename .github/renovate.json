@@ -9,7 +9,7 @@
   "branchPrefix": "dependencies/",
   "ignorePrAuthor": true,
   "labels": [
-    "patch"
+    "internal"
   ],
   "major": {
     "automerge": true
