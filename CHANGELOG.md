@@ -1,3 +1,23 @@
+# v0.2.3 (Fri Oct 14 2022)
+
+#### 🐞 Fixes
+
+- Update dependency @swc/core to v1.3.8 [#20](https://github.com/pleo-oss/assign-random-codeowners/pull/20) ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update dependency eslint to v8.25.0 [#21](https://github.com/pleo-oss/assign-random-codeowners/pull/21) ([@renovate[bot]](https://github.com/renovate[bot]))
+
+#### ⚠️ Pushed to `main`
+
+- Commit from GitHub Actions (Release) (renovate[bot]@users.noreply.github.com)
+- Create opslevel.yml ([@andersfischernielsen](https://github.com/andersfischernielsen))
+
+#### Authors: 3
+
+- [@renovate[bot]](https://github.com/renovate[bot])
+- Anders Fischer-Nielsen ([@andersfischernielsen](https://github.com/andersfischernielsen))
+- renovate[bot] (renovate[bot]@users.noreply.github.com)
+
+---
+
 # v0.2.2 (Fri Oct 07 2022)
 
 #### 🐞 Fixes
