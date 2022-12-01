@@ -1,6 +1,6 @@
 name: Assign Reviewers
 
-on: 
+on:
   pull_request:
     types:
       - assigned
@@ -44,7 +44,7 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v3
-        with: 
+        with:
           persist-credentials: false
 
       - name: Setup elevated SSH token
@@ -59,15 +59,5 @@ jobs:
           assign-from-changed-files: true
           assign-individuals-from-teams: true
           reviewers-to-assign: 1
-        env: 
+        env:
           GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
-
-      - name: Validate
-        if: steps.get-number-of-reviewers.outputs.total < 1
-        uses: actions/github-script@v6
-        with: 
-          script: |
-            const result = JSON.parse('${{ steps.assign.outputs.assigned-codeowners }}')
-            
-            if (!result || result.count !== 1)
-              process.exit(1)

@@ -10,7 +10,8 @@ export interface ActionOptions {
 export interface PullRequestInformation {
   number: number
   repo: string
-  owner: string
+  owner: string,
+  author?: string
 }
 
 export interface Assignees {
@@ -23,6 +24,7 @@ export interface SelectionOptions {
   assignedReviewers: number
   reviewers: number
   assignIndividuals: boolean
+  author?: string
 }
 
 export interface TeamMembers {

@@ -28,11 +28,13 @@ exports.setup = setup;
 const stringify = (input) => JSON.stringify(input);
 const extractPullRequestPayload = (context) => {
     const { payload: { pull_request: payload }, repo: { repo, owner }, } = context;
+    const author = payload?.['user']?.['login'];
     return payload && repo && owner
         ? {
             number: payload.number,
             repo,
             owner,
+            author,
         }
         : undefined;
 };
@@ -98,7 +100,7 @@ const fetchTeamMembers = (organisation, codeowners) => async (octokit) => {
 };
 exports.fetchTeamMembers = fetchTeamMembers;
 const selectReviewers = async (changedFiles, codeowners, teamMembers, options) => {
-    const { assignedReviewers, reviewers, assignIndividuals } = options;
+    const { assignedReviewers, reviewers, assignIndividuals, author } = options;
     const selectedTeams = new Set();
     const selectedUsers = new Set();
     const assignees = () => selectedTeams.size + selectedUsers.size + assignedReviewers;
@@ -115,6 +117,10 @@ const selectReviewers = async (changedFiles, codeowners, teamMembers, options) =
         const randomGlobalCodeowners = randomize(globalCodeowners);
         const selected = randomFileOwner ?? randomGlobalCodeowner(randomGlobalCodeowners);
         (0, core_1.debug)(`Selected: ${selected}`);
+        if (selected === author) {
+            (0, core_1.debug)(`'${selected}' is the author '${author}'. Skipping.`);
+            break;
+        }
         if (!selected) {
             (0, core_1.debug)(`Did not find an assignee.`);
             break;
@@ -213,7 +219,7 @@ const run = async () => {
             process.exit(0);
         }
         const teams = assignIndividuals ? await (0, exports.fetchTeamMembers)(pullRequest.owner, codeowners)(octokit) : {};
-        const selectionOptions = { assignedReviewers, reviewers, assignIndividuals };
+        const selectionOptions = { assignedReviewers, reviewers, assignIndividuals, author: pullRequest.author };
         const changedFiles = await (0, exports.extractChangedFiles)(assignFromChanges, pullRequest)(octokit);
         (0, core_1.info)('Selecting reviewers for assignment.');
         const selected = await (0, exports.selectReviewers)(changedFiles, codeowners, teams, selectionOptions);

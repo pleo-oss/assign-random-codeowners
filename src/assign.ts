@@ -33,17 +33,19 @@ export const setup = (): ActionOptions => {
 }
 
 const stringify = (input?: unknown) => JSON.stringify(input)
-export const extractPullRequestPayload = (context: Context) => {
+export const extractPullRequestPayload = (context: Context): PullRequestInformation | undefined => {
   const {
     payload: { pull_request: payload },
     repo: { repo, owner },
   } = context
 
+  const author: string = payload?.['user']?.['login']
   return payload && repo && owner
     ? {
         number: payload.number,
         repo,
         owner,
+        author,
       }
     : undefined
 }
@@ -132,7 +134,7 @@ export const selectReviewers = async (
   teamMembers: TeamMembers,
   options: SelectionOptions,
 ) => {
-  const { assignedReviewers, reviewers, assignIndividuals } = options
+  const { assignedReviewers, reviewers, assignIndividuals, author } = options
 
   const selectedTeams = new Set<string>()
   const selectedUsers = new Set<string>()
@@ -153,6 +155,11 @@ export const selectReviewers = async (
     const randomGlobalCodeowners = randomize(globalCodeowners)
     const selected = randomFileOwner ?? randomGlobalCodeowner(randomGlobalCodeowners)
     debug(`Selected: ${selected}`)
+
+    if (author && selected === author) {
+      debug(`'${selected}' is the author '${author}'. Skipping.`)
+      continue
+    }
 
     if (!selected) {
       debug(`Did not find an assignee.`)
@@ -265,7 +272,7 @@ export const run = async () => {
     }
 
     const teams = assignIndividuals ? await fetchTeamMembers(pullRequest.owner, codeowners)(octokit) : {}
-    const selectionOptions = { assignedReviewers, reviewers, assignIndividuals }
+    const selectionOptions = { assignedReviewers, reviewers, assignIndividuals, author: pullRequest.author }
     const changedFiles = await extractChangedFiles(assignFromChanges, pullRequest)(octokit)
     info('Selecting reviewers for assignment.')
     const selected = await selectReviewers(changedFiles, codeowners, teams, selectionOptions)
