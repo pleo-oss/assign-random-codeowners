@@ -117,9 +117,9 @@ const selectReviewers = async (changedFiles, codeowners, teamMembers, options) =
         const randomGlobalCodeowners = randomize(globalCodeowners);
         const selected = randomFileOwner ?? randomGlobalCodeowner(randomGlobalCodeowners);
         (0, core_1.debug)(`Selected: ${selected}`);
-        if (selected === author) {
+        if (author && selected === author) {
             (0, core_1.debug)(`'${selected}' is the author '${author}'. Skipping.`);
-            break;
+            continue;
         }
         if (!selected) {
             (0, core_1.debug)(`Did not find an assignee.`);
