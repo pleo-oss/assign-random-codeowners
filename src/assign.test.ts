@@ -117,6 +117,9 @@ describe('Payload handling', () => {
           number: 1,
           html_url: '',
           body: '',
+          user: {
+            login: 'username',
+          },
         },
       },
       eventName: 'pull-request',
@@ -147,6 +150,7 @@ describe('Payload handling', () => {
       number: 1,
       owner: 'owner',
       repo: 'repo',
+      author: 'username',
     })
   })
 
@@ -499,6 +503,25 @@ describe('Reviewer selection', () => {
     expect(result).not.toBeNull()
     expect(result.count).toEqual(3)
     expect(result.users.every(name => owners.includes(name))).toBeTruthy()
+  })
+
+  it('does not select an author from CODEOWNERS', async () => {
+    const owners = ['globalOwner1', 'globalOwner2', 'globalOwner3']
+    const filesChanged = []
+    const codeowners: CodeOwnersEntry[] = [{ pattern: '*', owners: owners }]
+    const assigned = 0
+    const options: SelectionOptions = {
+      assignedReviewers: assigned,
+      assignIndividuals: false,
+      reviewers: maxAssignees,
+      author: 'globalOwner1',
+    }
+
+    const result = await selectReviewers(filesChanged, codeowners, {}, options)
+
+    expect(result).not.toBeNull()
+    expect(result.count).toEqual(2)
+    expect(result.users.every(name => name !== options.author)).toBeTruthy()
   })
 
   it('does not loop infinitely when selecting from global one-person CODEOWNER teams', async () => {
