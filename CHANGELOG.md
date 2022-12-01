@@ -1,3 +1,57 @@
+# v0.2.5 (Thu Dec 01 2022)
+
+#### 🐞 Fixes
+
+- Avoid assigning PR authors as reviewers [#27](https://github.com/pleo-oss/assign-random-codeowners/pull/27) ([@andersfischernielsen](https://github.com/andersfischernielsen))
+
+#### ⚠️ Pushed to `main`
+
+- Commit from GitHub Actions (Release) (andersfischernielsen@users.noreply.github.com)
+- Build distribution ([@andersfischernielsen](https://github.com/andersfischernielsen))
+- Update dependency @swc/core to v1.3.21 ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update typescript-eslint monorepo to v5.45.0 ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update dependency @swc/core to v1.3.20 ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update dependency prettier to v2.8.0 ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update typescript-eslint monorepo to v5.44.0 ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update dependency eslint to v8.28.0 ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update dependency @swc/core to v1.3.19 ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update dependency typescript to v4.9.3 ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update dependency @swc/core to v1.3.18 ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update typescript-eslint monorepo to v5.43.0 ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update dependency @types/jest to v29.2.3 ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update dependency @swc/core to v1.3.17 ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update dependency @swc/core to v1.3.16 ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update dependency jest to v29.3.1 ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update dependency jest to v29.3.0 ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update typescript-eslint monorepo to v5.42.1 ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update dependency eslint to v8.27.0 ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update dependency @types/jest to v29.2.2 ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update dependency @swc/core to v1.3.14 ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update typescript-eslint monorepo to v5.42.0 ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update dependency @types/jest to v29.2.1 ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update dependency @swc/core to v1.3.11 ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update typescript-eslint monorepo to v5.41.0 ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update dependency jest to v29.2.2 ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update dependency eslint to v8.26.0 ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update dependency @swc/core to v1.3.10 ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update webfactory/ssh-agent action to v0.7.0 ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update dependency jest to v29.2.1 ([@renovate[bot]](https://github.com/renovate[bot]))
+
+#### 🏠 Internal
+
+- Pin dependency typescript to 4.8.4 [#26](https://github.com/pleo-oss/assign-random-codeowners/pull/26) ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update typescript-eslint monorepo to v5.40.1 [#25](https://github.com/pleo-oss/assign-random-codeowners/pull/25) ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update dependency @swc/core to v1.3.9 [#24](https://github.com/pleo-oss/assign-random-codeowners/pull/24) ([@renovate[bot]](https://github.com/renovate[bot]))
+- Update jest monorepo to v29.2.0 [#23](https://github.com/pleo-oss/assign-random-codeowners/pull/23) ([@renovate[bot]](https://github.com/renovate[bot]))
+
+#### Authors: 3
+
+- [@renovate[bot]](https://github.com/renovate[bot])
+- Anders Fischer-Nielsen ([@andersfischernielsen](https://github.com/andersfischernielsen))
+- andersfischernielsen (andersfischernielsen@users.noreply.github.com)
+
+---
+
 # v0.2.4 (Fri Oct 14 2022)
 
 #### 🐞 Fixes
